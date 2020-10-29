@@ -1,0 +1,30 @@
+//+build wireinject
+
+package main
+
+import (
+	"github.com/devtron-labs/chart-sync/internal/logger"
+	"github.com/devtron-labs/chart-sync/internal/sql"
+	"github.com/devtron-labs/chart-sync/pkg"
+	"github.com/google/wire"
+)
+
+func InitializeApp() (*App, error) {
+	wire.Build(
+		NewApp,
+		logger.NewSugardLogger,
+		sql.GetConfig,
+		sql.NewDbConnection,
+		sql.NewChartRepoRepositoryImpl,
+		wire.Bind(new(sql.ChartRepoRepository), new(*sql.ChartRepoRepositoryImpl)),
+		sql.NewAppStoreRepositoryImpl,
+		wire.Bind(new(sql.AppStoreRepository), new(*sql.AppStoreRepositoryImpl)),
+		sql.NewAppStoreApplicationVersionRepositoryImpl,
+		wire.Bind(new(sql.AppStoreApplicationVersionRepository), new(*sql.AppStoreApplicationVersionRepositoryImpl)),
+		pkg.NewHelmRepoManagerImpl,
+		wire.Bind(new(pkg.HelmRepoManager), new(*pkg.HelmRepoManagerImpl)),
+		pkg.NewSyncServiceImpl,
+		wire.Bind(new(pkg.SyncService), new(*pkg.SyncServiceImpl)),
+	)
+	return &App{}, nil
+}
