@@ -59,7 +59,7 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 	if err != nil {
 		return "", "", err
 	}
-	c, err := httpGetter.Get(version.URLs[0])
+	c, err := httpGetter.Get(absoluteChartURL)
 	if err != nil {
 		fmt.Println("err", err)
 		return "", "", err
