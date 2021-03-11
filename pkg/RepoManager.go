@@ -1,8 +1,8 @@
 package pkg
 
 import (
-	"github.com/devtron-labs/chart-sync/internal/sql"
 	"fmt"
+	"github.com/devtron-labs/chart-sync/internal/sql"
 	"go.uber.org/zap"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/getter"
@@ -14,7 +14,7 @@ import (
 
 type HelmRepoManager interface {
 	LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.IndexFile, error)
-	ValuesJson(version *repo.ChartVersion) (rawValues string, readme string, err error)
+	ValuesJson(baseurl string, version *repo.ChartVersion) (rawValues string, readme string, err error)
 }
 type HelmRepoManagerImpl struct {
 	logger *zap.SugaredLogger
@@ -50,12 +50,16 @@ func (impl *HelmRepoManagerImpl) LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.
 	return index, nil
 }
 
-func (impl *HelmRepoManagerImpl) ValuesJson(version *repo.ChartVersion) (rawValues string, readme string, err error) {
-	httpGetter, err := getter.NewHTTPGetter(version.URLs[0], "", "", "")
+func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartVersion) (rawValues string, readme string, err error) {
+	absoluteChartURL, err := repo.ResolveReferenceURL(baseurl, version.URLs[0])
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse %s as URL: %v", baseurl, err)
+	}
+	httpGetter, err := getter.NewHTTPGetter(absoluteChartURL, "", "", "")
 	if err != nil {
 		return "", "", err
 	}
-	c, err := httpGetter.Get(version.URLs[0])
+	c, err := httpGetter.Get(absoluteChartURL)
 	if err != nil {
 		fmt.Println("err", err)
 		return "", "", err
