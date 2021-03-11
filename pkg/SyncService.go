@@ -1,8 +1,8 @@
 package pkg
 
 import (
-	"github.com/devtron-labs/chart-sync/internal/sql"
 	"encoding/json"
+	"github.com/devtron-labs/chart-sync/internal/sql"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -62,7 +62,7 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 	}
 	applicationId := make(map[string]int)
 	for _, application := range applications {
-		applicationId[ application.Name] = application.Id
+		applicationId[application.Name] = application.Id
 	}
 	for name, chartVersions := range indexFile.Entries {
 		id, ok := applicationId[name]
@@ -85,7 +85,7 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 		}
 		//update entries if any  id, chartVersions
 		impl.logger.Infow("updating app", "name", name)
-		err := impl.updateChartVersions(id, &chartVersions)
+		err := impl.updateChartVersions(id, &chartVersions, repo.Url)
 		if err != nil {
 			impl.logger.Errorw("error in updating chart versions", "err", err, "appId", id)
 			continue
@@ -94,7 +94,7 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 	return nil
 }
 
-func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.ChartVersions) error {
+func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.ChartVersions, baseurl string) error {
 	applicationVersions, err := impl.appStoreApplicationVersionRepository.FindVersionsByAppStoreId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting application versions ", "err", err, "appId", appId)
@@ -116,7 +116,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			impl.logger.Errorw("error in marshaling json", "err", err)
 			continue
 		}
-		rawValues, readme, err := impl.helmRepoManager.ValuesJson(chartVersion)
+		rawValues, readme, err := impl.helmRepoManager.ValuesJson(baseurl, chartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in getting values yaml", "err", err)
 			continue
@@ -144,14 +144,14 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			Latest:     false,
 			AppStoreId: appId,
 			AuditLog: sql.AuditLog{
-				CreatedOn:  time.Now(),
-				UpdatedOn:  time.Now(),
+				CreatedOn: time.Now(),
+				UpdatedOn: time.Now(),
 				CreatedBy: 1,
 				UpdatedBy: 1,
 			},
-			RawValues:  rawValues,
-			Readme:     readme,
-			AppStore:   nil,
+			RawValues: rawValues,
+			Readme:    readme,
+			AppStore:  nil,
 		}
 		appVersions = append(appVersions, application)
 	}
