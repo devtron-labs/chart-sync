@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"github.com/devtron-labs/chart-sync/internal/sql"
 	"go.uber.org/zap"
-	"k8s.io/helm/pkg/chartutil"
-	"k8s.io/helm/pkg/getter"
-	helm_env "k8s.io/helm/pkg/helm/environment"
-	"k8s.io/helm/pkg/repo"
-	"path/filepath"
+	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v3/pkg/cli"
+	"helm.sh/helm/v3/pkg/getter"
+	"helm.sh/helm/v3/pkg/repo"
+
 	"strings"
 )
 
@@ -26,23 +26,25 @@ func NewHelmRepoManagerImpl(logger *zap.SugaredLogger) *HelmRepoManagerImpl {
 
 func (impl *HelmRepoManagerImpl) LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.IndexFile, error) {
 	helmRepoConfig := &repo.Entry{
-		Name:     chartRepo.Name,
-		Cache:    filepath.Join("/tmp", fmt.Sprintf("%s-index.yaml", chartRepo.Name)),
-		URL:      chartRepo.Url,
-		Username: chartRepo.Username,
-		Password: chartRepo.Password,
-		CertFile: chartRepo.CertFile,
-		KeyFile:  chartRepo.KeyFile,
-		CAFile:   chartRepo.CAFile,
+		Name:                  chartRepo.Name,
+		URL:                   chartRepo.Url,
+		Username:              chartRepo.Username,
+		Password:              chartRepo.Password,
+		CertFile:              chartRepo.CertFile,
+		KeyFile:               chartRepo.KeyFile,
+		CAFile:                chartRepo.CAFile,
+		InsecureSkipTLSverify: false,
 	}
-	helmRepo, err := repo.NewChartRepository(helmRepoConfig, getter.All(helm_env.EnvSettings{}))
+	helmRepo, err := repo.NewChartRepository(helmRepoConfig, getter.All(&cli.EnvSettings{}))
+
 	if err != nil {
 		return nil, err
 	}
-	if err := helmRepo.DownloadIndexFile(""); err != nil {
+	indexfilelocation, err := helmRepo.DownloadIndexFile()
+	if err != nil {
 		return nil, fmt.Errorf("Looks like %q is not a valid chart repository or cannot be reached: %s", chartRepo.Url, err.Error())
 	}
-	index, err := repo.LoadIndexFile(helmRepoConfig.Cache)
+	index, err := repo.LoadIndexFile(indexfilelocation)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +57,7 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 	if err != nil {
 		return "", "", fmt.Errorf("failed to parse %s as URL: %v", baseurl, err)
 	}
-	httpGetter, err := getter.NewHTTPGetter(absoluteChartURL, "", "", "")
+	httpGetter, err := getter.NewHTTPGetter(getter.WithURL(absoluteChartURL))
 	if err != nil {
 		return "", "", err
 	}
@@ -64,21 +66,24 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 		fmt.Println("err", err)
 		return "", "", err
 	}
-	chart, err := chartutil.LoadArchive(c)
+	chart, err := loader.LoadArchive(c)
 	if err != nil {
 		fmt.Println("err", err)
 		return "", "", err
 	}
-	val := chart.GetValues()
-	yamlValues := val.Raw
 
-	readme = ""
-	files := chart.GetFiles()
+	rawFiles := chart.Raw
+	for _, f := range rawFiles {
+		if strings.EqualFold(f.Name, "values.yaml") {
+			rawValues = string(f.Data)
+		}
+	}
+	files := chart.Files
 	for _, f := range files {
-		if strings.EqualFold(f.TypeUrl, "README.md") {
-			readme = string(f.GetValue())
+		if strings.EqualFold(f.Name, "README.md") {
+			readme = string(f.Data)
 		}
 	}
 
-	return yamlValues, readme, err
+	return rawValues, readme, err
 }

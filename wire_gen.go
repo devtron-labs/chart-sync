@@ -11,6 +11,10 @@ import (
 	"github.com/devtron-labs/chart-sync/pkg"
 )
 
+import (
+	_ "helm.sh/helm/v3/pkg/chart"
+)
+
 // Injectors from wire.go:
 
 func InitializeApp() (*App, error) {

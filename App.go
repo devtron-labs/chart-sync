@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/devtron-labs/chart-sync/pkg"
+	_ "helm.sh/helm/v3/pkg/chart"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
