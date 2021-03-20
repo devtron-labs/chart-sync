@@ -6,7 +6,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"k8s.io/helm/pkg/repo"
+	"helm.sh/helm/v3/pkg/repo"
 	"time"
 )
 
