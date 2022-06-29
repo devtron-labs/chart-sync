@@ -41,9 +41,10 @@ type AppStoreApplicationVersion struct {
 	Latest      bool      `sql:"latest,notnull"`
 	AppStoreId  int       `sql:"app_store_id"`
 	AuditLog
-	RawValues string `sql:"raw_values"`
-	Readme    string `sql:"readme"`
-	AppStore  *AppStore
+	RawValues  string `sql:"raw_values"`
+	Readme     string `sql:"readme"`
+	SchemaJson string `sql:"schema_json"`
+	AppStore   *AppStore
 }
 
 func (impl AppStoreApplicationVersionRepositoryImpl) FindVersionsByAppStoreId(appStoreId int) ([]*AppStoreApplicationVersion, error) {

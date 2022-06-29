@@ -14,7 +14,7 @@ import (
 
 type HelmRepoManager interface {
 	LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.IndexFile, error)
-	ValuesJson(baseurl string, version *repo.ChartVersion) (rawValues string, readme string, err error)
+	ValuesJson(baseurl string, version *repo.ChartVersion) (rawValues string, readme string, schemaJson string, err error)
 }
 type HelmRepoManagerImpl struct {
 	logger *zap.SugaredLogger
@@ -52,24 +52,24 @@ func (impl *HelmRepoManagerImpl) LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.
 	return index, nil
 }
 
-func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartVersion) (rawValues string, readme string, err error) {
+func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartVersion) (rawValues string, readme string, schemaJson string, err error) {
 	absoluteChartURL, err := repo.ResolveReferenceURL(baseurl, version.URLs[0])
 	if err != nil {
-		return "", "", fmt.Errorf("failed to parse %s as URL: %v", baseurl, err)
+		return "", "", "", fmt.Errorf("failed to parse %s as URL: %v", baseurl, err)
 	}
 	httpGetter, err := getter.NewHTTPGetter(getter.WithURL(absoluteChartURL))
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	c, err := httpGetter.Get(absoluteChartURL)
 	if err != nil {
 		fmt.Println("err", err)
-		return "", "", err
+		return "", "", "", err
 	}
 	chart, err := loader.LoadArchive(c)
 	if err != nil {
 		fmt.Println("err", err)
-		return "", "", err
+		return "", "", "", err
 	}
 
 	rawFiles := chart.Raw
@@ -81,11 +81,17 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 	}
 	files := chart.Files
 	for _, f := range files {
+		fmt.Println("testing file name ", f.Name)
 		if strings.EqualFold(f.Name, "README.md") {
 			readme = string(f.Data)
 			break
 		}
+
+		if strings.EqualFold(f.Name, "schema.json") {
+			schemaJson = string(f.Data)
+			break
+		}
 	}
 
-	return rawValues, readme, err
+	return rawValues, readme, schemaJson, err
 }

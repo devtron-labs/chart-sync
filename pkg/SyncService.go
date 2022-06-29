@@ -25,7 +25,7 @@ func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
 	logger *zap.SugaredLogger,
 	helmRepoManager HelmRepoManager,
 	appStoreRepository sql.AppStoreRepository,
-	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository, ) *SyncServiceImpl {
+	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository) *SyncServiceImpl {
 	return &SyncServiceImpl{
 		chartRepoRepository:                  chartRepoRepository,
 		logger:                               logger,
@@ -116,7 +116,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			impl.logger.Errorw("error in marshaling json", "err", err)
 			continue
 		}
-		rawValues, readme, err := impl.helmRepoManager.ValuesJson(baseurl, chartVersion)
+		rawValues, readme, schemaJson, err := impl.helmRepoManager.ValuesJson(baseurl, chartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in getting values yaml", "err", err)
 			continue
@@ -149,9 +149,10 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 				CreatedBy: 1,
 				UpdatedBy: 1,
 			},
-			RawValues: rawValues,
-			Readme:    readme,
-			AppStore:  nil,
+			RawValues:  rawValues,
+			Readme:     readme,
+			SchemaJson: schemaJson,
+			AppStore:   nil,
 		}
 		appVersions = append(appVersions, application)
 	}
