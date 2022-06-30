@@ -81,15 +81,18 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 	}
 	files := chart.Files
 	for _, f := range files {
-		fmt.Println("testing file name ", f.Name)
+		impl.logger.Infow("testing file", "name ", f.Name)
 		if strings.EqualFold(f.Name, "README.md") {
 			readme = string(f.Data)
-			break
 		}
 
 		if strings.EqualFold(f.Name, "schema.json") {
 			schemaJson = string(f.Data)
-			break
+		}
+
+		if strings.EqualFold(f.Name, "NOTES.txt") {
+			notes := string(f.Data)
+			impl.logger.Infow("Testing notes data: ", "notes", notes)
 		}
 	}
 
