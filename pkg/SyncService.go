@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/chart-sync/internal/sql"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
@@ -121,6 +122,8 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			impl.logger.Errorw("error in getting values yaml", "err", err)
 			continue
 		}
+		fmt.Println("Testing ")
+		fmt.Println(schemaJson)
 
 		jsonByte, err := yaml.YAMLToJSON([]byte(rawValues))
 		if err != nil {
@@ -149,10 +152,9 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 				CreatedBy: 1,
 				UpdatedBy: 1,
 			},
-			RawValues:  rawValues,
-			Readme:     readme,
-			SchemaJson: schemaJson,
-			AppStore:   nil,
+			RawValues: rawValues,
+			Readme:    readme,
+			AppStore:  nil,
 		}
 		appVersions = append(appVersions, application)
 	}
