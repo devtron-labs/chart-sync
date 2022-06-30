@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/devtron-labs/chart-sync/internal/sql"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
@@ -120,10 +119,9 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		rawValues, readme, schemaJson, err := impl.helmRepoManager.ValuesJson(baseurl, chartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in getting values yaml", "err", err)
+			impl.logger.Errorw(schemaJson) //testing
 			continue
 		}
-		fmt.Println("Testing ")
-		fmt.Println(schemaJson)
 
 		jsonByte, err := yaml.YAMLToJSON([]byte(rawValues))
 		if err != nil {

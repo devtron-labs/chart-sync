@@ -91,8 +91,8 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 		}
 
 		if strings.EqualFold(f.Name, "NOTES.txt") {
-			notes := string(f.Data)
-			impl.logger.Infow("Testing notes data: ", "notes", notes)
+			//notes := string(f.Data)
+			impl.logger.Infow("Testing notes data: ", "notes", f.Name)
 		}
 	}
 
