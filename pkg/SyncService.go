@@ -106,6 +106,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		applicationVersionMaps[applicationVersion.Version] = applicationVersion.Id
 	}
 	var appVersions []*sql.AppStoreApplicationVersion
+	impl.logger.Infow("snehit chartVersions", "chartVersions ", *chartVersions)
 	for _, chartVersion := range *chartVersions {
 		//testing
 		//if _, ok := applicationVersionMaps[chartVersion.Version]; ok {
@@ -115,19 +116,19 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		chartVersionJson, err := json.Marshal(chartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in marshaling json", "err", err)
-			continue
+			//continue
 		}
 		rawValues, readme, schemaJson, notes, err := impl.helmRepoManager.ValuesJson(baseurl, chartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in getting values yaml", "err", err)
 			impl.logger.Errorw(schemaJson) //testing
-			continue
+			//continue
 		}
 
 		jsonByte, err := yaml.YAMLToJSON([]byte(rawValues))
 		if err != nil {
 			impl.logger.Errorw("error in getting values yaml", "err", err)
-			continue
+			//continue
 		}
 		application := &sql.AppStoreApplicationVersion{
 			Id:          0,
