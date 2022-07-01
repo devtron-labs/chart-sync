@@ -107,10 +107,11 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 	}
 	var appVersions []*sql.AppStoreApplicationVersion
 	for _, chartVersion := range *chartVersions {
-		if _, ok := applicationVersionMaps[chartVersion.Version]; ok {
-			//already present
-			continue // testing
-		}
+		//testing
+		//if _, ok := applicationVersionMaps[chartVersion.Version]; ok {
+		//	//already present
+		//	break
+		//}
 		chartVersionJson, err := json.Marshal(chartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in marshaling json", "err", err)
