@@ -76,7 +76,7 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 	for _, f := range rawFiles {
 		if strings.EqualFold(f.Name, "values.yaml") {
 			rawValues = string(f.Data)
-			break
+			//break
 		}
 	}
 	files := chart.Files
