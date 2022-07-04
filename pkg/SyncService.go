@@ -95,13 +95,14 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 }
 
 func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.ChartVersions, baseurl string) error {
+	impl.logger.Infow("snehit updateChartVersions")
 	applicationVersions, err := impl.appStoreApplicationVersionRepository.FindVersionsByAppStoreId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting application versions ", "err", err, "appId", appId)
 		return err
 	}
 	applicationVersionMaps := make(map[string]int)
-
+	impl.logger.Infow("snehit updateChartVersions1")
 	for _, applicationVersion := range applicationVersions {
 		applicationVersionMaps[applicationVersion.Version] = applicationVersion.Id
 	}
