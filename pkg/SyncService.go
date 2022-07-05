@@ -75,6 +75,7 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 				UpdatedOn:   time.Now(),
 				Active:      true,
 			}
+			impl.logger.Infow("testing saving app", "app", app)
 			err = impl.appStoreRepository.Save(app)
 			if err != nil {
 				impl.logger.Errorw("error in saving app", "app", app, "err", err)
@@ -95,7 +96,7 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 }
 
 func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.ChartVersions, baseurl string) error {
-	impl.logger.Infow("snehit updateChartVersions")
+	impl.logger.Infow("snehit updateChartVersions", "appId", appId)
 	applicationVersions, err := impl.appStoreApplicationVersionRepository.FindVersionsByAppStoreId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting application versions ", "err", err, "appId", appId)
@@ -107,7 +108,6 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		applicationVersionMaps[applicationVersion.Version] = applicationVersion.Id
 	}
 	var appVersions []*sql.AppStoreApplicationVersion
-	impl.logger.Infow("snehit chartVersions", "chartVersions ", *chartVersions)
 	for _, chartVersion := range *chartVersions {
 		//testing
 		//if _, ok := applicationVersionMaps[chartVersion.Version]; ok {
