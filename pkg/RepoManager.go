@@ -53,10 +53,8 @@ func (impl *HelmRepoManagerImpl) LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.
 }
 
 func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartVersion) (rawValues string, readme string, schemaJson string, notes string, err error) {
-	impl.logger.Infow("snehith values json")
 	absoluteChartURL, err := repo.ResolveReferenceURL(baseurl, version.URLs[0])
 	if err != nil {
-		impl.logger.Infow("snehith values json", "err", err)
 		return "", "", "", "", fmt.Errorf("failed to parse %s as URL: %v", baseurl, err)
 	}
 	httpGetter, err := getter.NewHTTPGetter(getter.WithURL(absoluteChartURL))
@@ -88,11 +86,11 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 			readme = string(f.Data)
 		}
 
-		if strings.EqualFold(f.Name, "schema.json") {
+		if strings.Contains(f.Name, "schema.json") {
 			schemaJson = string(f.Data)
 		}
 
-		if strings.EqualFold(f.Name, "NOTES.txt") {
+		if strings.Contains(f.Name, "NOTES.txt") {
 			notes = string(f.Data)
 		}
 	}
