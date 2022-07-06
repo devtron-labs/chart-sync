@@ -41,6 +41,7 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 		return nil, err
 	}
 	for _, repo := range repos {
+		impl.logger.Infow("snehith testing sync", "repo id", repo.Id, "repo name", repo.Name)
 		err := impl.syncRepo(repo)
 		if err != nil {
 			impl.logger.Errorw("repo sync error", "repo", repo)
@@ -50,13 +51,16 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 }
 
 func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
+	impl.logger.Infow("snehith testing syncrepo ", "repo", repo)
 	indexFile, err := impl.helmRepoManager.LoadIndexFile(repo)
 	if err != nil {
 		impl.logger.Errorw("error in loading index file", "repo", repo.Name, "err", err)
 		return err
 	}
+	impl.logger.Infow("snehith testing syncrepo1 ", "indexFile", indexFile)
 	indexFile.SortEntries()
 	applications, err := impl.appStoreRepository.FindByRepoId(repo.Id)
+	impl.logger.Infow("snehith testing syncrepo2 ", "applications", applications)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app for repo", "repo", repo.Id, "err", err)
 	}
