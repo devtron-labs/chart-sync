@@ -64,7 +64,9 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 	for _, application := range applications {
 		applicationId[application.Name] = application.Id
 	}
+
 	for name, chartVersions := range indexFile.Entries {
+		impl.logger.Infow("snehith testing", "name", name, "entries length", len(indexFile.Entries), "repo Id ", repo.Id)
 		id, ok := applicationId[name]
 		if !ok {
 			//new app create AppStore
