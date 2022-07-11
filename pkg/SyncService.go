@@ -13,6 +13,10 @@ import (
 type SyncService interface {
 	Sync() (interface{}, error)
 }
+
+var listOfSynced []string
+var listOfSkipped []string
+
 type SyncServiceImpl struct {
 	chartRepoRepository                  sql.ChartRepoRepository
 	logger                               *zap.SugaredLogger
@@ -47,6 +51,7 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 			impl.logger.Errorw("repo sync error", "repo", repo)
 		}
 	}
+	impl.logger.Infow("Testing final: ", "synced length ", len(listOfSynced), "synced names ", listOfSynced, "skipped length ", len(listOfSkipped), "skipped names ", listOfSkipped)
 	return nil, nil
 }
 
@@ -94,9 +99,11 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 		impl.logger.Infow("updating app", "name", name)
 		err := impl.updateChartVersions(id, &chartVersions, repo.Url)
 		if err != nil {
+			listOfSkipped = append(listOfSkipped, repo.Name)
 			impl.logger.Errorw("error in updating chart versions", "err", err, "appId", id)
 			continue
 		}
+		listOfSynced = append(listOfSynced, repo.Name)
 	}
 	return nil
 }
