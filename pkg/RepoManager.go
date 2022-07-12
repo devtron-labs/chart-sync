@@ -14,7 +14,7 @@ import (
 
 type HelmRepoManager interface {
 	LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.IndexFile, error)
-	ValuesJson(baseurl string, version *repo.ChartVersion) (rawValues string, readme string, err error)
+	ValuesJson(baseurl string, version *repo.ChartVersion) (rawValues string, readme string, valuesSchemaJson string, notes string, err error)
 }
 type HelmRepoManagerImpl struct {
 	logger *zap.SugaredLogger
@@ -52,26 +52,27 @@ func (impl *HelmRepoManagerImpl) LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.
 	return index, nil
 }
 
-func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartVersion) (rawValues string, readme string, err error) {
+func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartVersion) (rawValues string, readme string, valuesSchemaJson string, notes string, err error) {
 	absoluteChartURL, err := repo.ResolveReferenceURL(baseurl, version.URLs[0])
 	if err != nil {
-		return "", "", fmt.Errorf("failed to parse %s as URL: %v", baseurl, err)
+		return "", "", "", "", fmt.Errorf("failed to parse %s as URL: %v", baseurl, err)
 	}
 	httpGetter, err := getter.NewHTTPGetter(getter.WithURL(absoluteChartURL))
 	if err != nil {
-		return "", "", err
+		return "", "", "", "", err
 	}
 	c, err := httpGetter.Get(absoluteChartURL)
 	if err != nil {
 		fmt.Println("err", err)
-		return "", "", err
+		return "", "", "", "", err
 	}
 	chart, err := loader.LoadArchive(c)
 	if err != nil {
 		fmt.Println("err", err)
-		return "", "", err
+		return "", "", "", "", err
 	}
 
+	// get values.yaml
 	rawFiles := chart.Raw
 	for _, f := range rawFiles {
 		if strings.EqualFold(f.Name, "values.yaml") {
@@ -79,6 +80,8 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 			break
 		}
 	}
+
+	// get readme
 	files := chart.Files
 	for _, f := range files {
 		if strings.EqualFold(f.Name, "README.md") {
@@ -87,5 +90,13 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 		}
 	}
 
-	return rawValues, readme, err
+	// get notes
+	for _, templateFile := range chart.Templates {
+		if strings.EqualFold(templateFile.Name, "NOTES.txt") {
+			notes = string(templateFile.Data)
+			break
+		}
+	}
+
+	return rawValues, readme, string(chart.Schema), notes, err
 }
