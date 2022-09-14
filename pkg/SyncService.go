@@ -25,7 +25,7 @@ func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
 	logger *zap.SugaredLogger,
 	helmRepoManager HelmRepoManager,
 	appStoreRepository sql.AppStoreRepository,
-	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository, ) *SyncServiceImpl {
+	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository) *SyncServiceImpl {
 	return &SyncServiceImpl{
 		chartRepoRepository:                  chartRepoRepository,
 		logger:                               logger,
@@ -41,6 +41,7 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 		return nil, err
 	}
 	for _, repo := range repos {
+		impl.logger.Infow("DEBUGGING syncing repo", "name", repo.Name)
 		err := impl.syncRepo(repo)
 		if err != nil {
 			impl.logger.Errorw("repo sync error", "repo", repo)
@@ -64,6 +65,7 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 	for _, application := range applications {
 		applicationId[application.Name] = application.Id
 	}
+	impl.logger.Infow("DEBUGGING indexFile.Entries", "length", len(indexFile.Entries))
 	for name, chartVersions := range indexFile.Entries {
 		id, ok := applicationId[name]
 		if !ok {
