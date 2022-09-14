@@ -42,12 +42,19 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 	}
 	for _, repo := range repos {
 		impl.logger.Infow("DEBUGGING syncing repo", "name", repo.Name)
-		err := impl.syncRepo(repo)
+		//err := impl.syncRepo(repo)
+		err := impl.onlyLoadIndexes(repo)
+		time.Sleep(30 * time.Second)
 		if err != nil {
 			impl.logger.Errorw("repo sync error", "repo", repo)
 		}
 	}
 	return nil, nil
+}
+
+func (impl *SyncServiceImpl) onlyLoadIndexes(repo *sql.ChartRepo) error {
+	_, err := impl.helmRepoManager.LoadIndexFile(repo)
+	return err
 }
 
 func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
