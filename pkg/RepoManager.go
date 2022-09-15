@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/devtron-labs/chart-sync/internal/sql"
 	"go.uber.org/zap"
@@ -63,7 +64,7 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 		fmt.Println("err", err)
 		return "", "", "", "", err
 	}
-	c = nil
+	c = bytes.NewBuffer(nil)
 	if c == nil {
 		return rawValues, readme, "", notes, err
 	}
