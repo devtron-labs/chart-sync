@@ -140,7 +140,10 @@ func get(href string) (*bytes.Buffer, error) {
 
 	_, err = io.Copy(buf, resp.Body)
 	fmt.Println("DEBUGGING copied...")
-	resp.Body.Close()
+	err = resp.Body.Close()
+	if err != nil {
+		fmt.Println("DEBUGGING error in closing")
+	}
 	fmt.Println("DEBUGGING closed...")
 	return buf, err
 }
