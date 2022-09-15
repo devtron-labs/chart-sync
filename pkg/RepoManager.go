@@ -123,7 +123,6 @@ func get(href string) (*bytes.Buffer, error) {
 		DisableCompression: true,
 		Proxy:              http.ProxyFromEnvironment,
 	}
-	transport.TLSClientConfig.InsecureSkipVerify = true
 
 	client := &http.Client{
 		Transport: transport,
