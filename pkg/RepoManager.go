@@ -4,12 +4,9 @@ import (
 	"fmt"
 	"github.com/devtron-labs/chart-sync/internal/sql"
 	"go.uber.org/zap"
-	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/repo"
-
-	"strings"
 )
 
 type HelmRepoManager interface {
@@ -61,12 +58,12 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 	if err != nil {
 		return "", "", "", "", err
 	}
-	c, err := httpGetter.Get(absoluteChartURL)
+	_, err = httpGetter.Get(absoluteChartURL)
 	if err != nil {
 		fmt.Println("err", err)
 		return "", "", "", "", err
 	}
-	chart, err := loader.LoadArchive(c)
+	/*chart, err := loader.LoadArchive(c)
 	if err != nil {
 		fmt.Println("err", err)
 		return "", "", "", "", err
@@ -96,7 +93,9 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 			notes = string(templateFile.Data)
 			break
 		}
-	}
+	}*/
 
-	return rawValues, readme, string(chart.Schema), notes, err
+	return rawValues, readme, "", notes, err
+
+	//return rawValues, readme, string(chart.Schema), notes, err
 }
