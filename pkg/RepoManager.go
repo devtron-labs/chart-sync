@@ -9,7 +9,9 @@ import (
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/repo"
+	"io/ioutil"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -62,7 +64,7 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 	if err != nil {
 		return "", "", "", "", err
 	}*/
-	c, err := get(absoluteChartURL)
+	/*c, err := get(absoluteChartURL)
 	if err != nil {
 		fmt.Println("err", err)
 		return "", "", "", "", err
@@ -70,7 +72,17 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 	c = bytes.NewBuffer(nil)
 	if c == nil {
 		return rawValues, readme, "", notes, err
+	}*/
+
+	c, err := ReadFromUrlWithRetry(absoluteChartURL)
+	if err != nil {
+		fmt.Println("err", err)
+		return "", "", "", "", err
 	}
+	if c == nil {
+		return rawValues, readme, "", notes, err
+	}
+	
 	/*chart, err := loader.LoadArchive(c)
 	if err != nil {
 		fmt.Println("err", err)
@@ -144,4 +156,35 @@ func get(href string) (*bytes.Buffer, error) {
 	}
 	fmt.Println("DEBUGGING closed...")
 	return buf, err
+}
+
+func ReadFromUrlWithRetry(url string) ([]byte, error) {
+	var (
+		err      error
+		response *http.Response
+		retries  = 3
+	)
+
+	for retries > 0 {
+		response, err = http.Get(url)
+		if err != nil {
+			retries -= 1
+			time.Sleep(1 * time.Second)
+		} else {
+			break
+		}
+	}
+	if response != nil {
+		defer response.Body.Close()
+		statusCode := response.StatusCode
+		if statusCode != http.StatusOK {
+			return nil, errors.New("Error in downloading file. Status code : " + strconv.Itoa(statusCode))
+		}
+		body, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return nil, err
+		}
+		return body, nil
+	}
+	return nil, err
 }
