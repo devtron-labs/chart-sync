@@ -1,8 +1,10 @@
-//+build wireinject
+//go:build wireinject
+// +build wireinject
 
 package main
 
 import (
+	"github.com/devtron-labs/chart-sync/internal"
 	"github.com/devtron-labs/chart-sync/internal/logger"
 	"github.com/devtron-labs/chart-sync/internal/sql"
 	"github.com/devtron-labs/chart-sync/pkg"
@@ -14,6 +16,7 @@ func InitializeApp() (*App, error) {
 		NewApp,
 		logger.NewSugardLogger,
 		sql.GetConfig,
+		internal.ParseConfiguration,
 		sql.NewDbConnection,
 		sql.NewChartRepoRepositoryImpl,
 		wire.Bind(new(sql.ChartRepoRepository), new(*sql.ChartRepoRepositoryImpl)),
