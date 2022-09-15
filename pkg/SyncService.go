@@ -42,7 +42,7 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 		impl.logger.Infow("DEBUGGING syncing repo", "name", repo.Name)
 		err := impl.syncRepo(repo)
 		//err := impl.onlyLoadIndexes(repo)
-		time.Sleep(30 * time.Second)
+		//time.Sleep(30 * time.Second)
 		if err != nil {
 			impl.logger.Errorw("repo sync error", "repo", repo)
 		}
