@@ -1,9 +1,7 @@
 package pkg
 
 import (
-	"encoding/json"
 	"github.com/devtron-labs/chart-sync/internal/sql"
-	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/repo"
@@ -42,8 +40,8 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 	}
 	for _, repo := range repos {
 		impl.logger.Infow("DEBUGGING syncing repo", "name", repo.Name)
-		//err := impl.syncRepo(repo)
-		err := impl.onlyLoadIndexes(repo)
+		err := impl.syncRepo(repo)
+		//err := impl.onlyLoadIndexes(repo)
 		time.Sleep(30 * time.Second)
 		if err != nil {
 			impl.logger.Errorw("repo sync error", "repo", repo)
@@ -116,7 +114,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		applicationVersionMaps[applicationVersion.Version] = applicationVersion.Id
 	}
 	var appVersions []*sql.AppStoreApplicationVersion
-	for _, chartVersion := range *chartVersions {
+	/*for _, chartVersion := range *chartVersions {
 		if _, ok := applicationVersionMaps[chartVersion.Version]; ok {
 			//already present
 			break
@@ -166,7 +164,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			AppStore:         nil,
 		}
 		appVersions = append(appVersions, application)
-	}
+	}*/
 	if len(appVersions) == 0 {
 		impl.logger.Infow("no change for ", "app", appId)
 		return nil
