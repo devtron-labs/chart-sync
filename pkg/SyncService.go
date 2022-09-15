@@ -1,7 +1,9 @@
 package pkg
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/chart-sync/internal/sql"
+	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/repo"
@@ -116,7 +118,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		applicationVersionMaps[applicationVersion.Version] = applicationVersion.Id
 	}
 	var appVersions []*sql.AppStoreApplicationVersion
-	/*for _, chartVersion := range *chartVersions {
+	for _, chartVersion := range *chartVersions {
 		if _, ok := applicationVersionMaps[chartVersion.Version]; ok {
 			//already present
 			break
@@ -166,16 +168,16 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			AppStore:         nil,
 		}
 		appVersions = append(appVersions, application)
-	}*/
+	}
 	if len(appVersions) == 0 {
 		impl.logger.Infow("no change for ", "app", appId)
 		return nil
 	}
-	err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
+	/*err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
 	if err != nil {
 		impl.logger.Errorw("error in updating", "totalIn", len(*chartVersions), "totalOut", len(appVersions), "err", err)
 		return err
-	}
+	}*/
 	var latestFlagAppVersions []*sql.AppStoreApplicationVersion
 	latestCreated, err := impl.appStoreApplicationVersionRepository.FindLatestCreated(appId)
 	if err != nil {
