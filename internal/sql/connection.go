@@ -16,7 +16,7 @@ type Config struct {
 	Password        string `env:"PG_PASSWORD" envDefault:"password" secretData:"-"`
 	Database        string `env:"PG_DATABASE" envDefault:"orchestrator"`
 	ApplicationName string `env:"APP" envDefault:"chart-sync"`
-	LogQuery        bool   `env:"PG_LOG_QUERY" envDefault:"true"`
+	LogQuery        bool   `env:"PG_LOG_QUERY" envDefault:"false"`
 }
 
 func GetConfig() (*Config, error) {
