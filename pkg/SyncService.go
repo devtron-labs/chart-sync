@@ -47,6 +47,8 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 			impl.logger.Errorw("repo sync error", "repo", repo)
 		}
 	}
+	impl.logger.Info("DEBUGGING ending......")
+	time.Sleep(60 * time.Second)
 	return nil, nil
 }
 
