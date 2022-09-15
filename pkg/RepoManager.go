@@ -9,7 +9,6 @@ import (
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/repo"
-	"io"
 	"net/http"
 	"time"
 )
@@ -137,7 +136,7 @@ func get(href string) (*bytes.Buffer, error) {
 		return buf, errors.Errorf("failed to fetch %s : %s", href, resp.Status)
 	}
 
-	_, err = io.Copy(buf, resp.Body)
+	//	_, err = io.Copy(buf, resp.Body)
 	fmt.Println("DEBUGGING copied...")
 	err = resp.Body.Close()
 	if err != nil {
