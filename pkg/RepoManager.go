@@ -54,15 +54,15 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 	if err != nil {
 		return "", "", "", "", fmt.Errorf("failed to parse %s as URL: %v", baseurl, err)
 	}
-	httpGetter, err := getter.NewHTTPGetter(getter.WithURL(absoluteChartURL))
+	_, err = getter.NewHTTPGetter(getter.WithURL(absoluteChartURL))
 	if err != nil {
 		return "", "", "", "", err
 	}
-	_, err = httpGetter.Get(absoluteChartURL)
+	/*_, err = httpGetter.Get(absoluteChartURL)
 	if err != nil {
 		fmt.Println("err", err)
 		return "", "", "", "", err
-	}
+	}*/
 	/*chart, err := loader.LoadArchive(c)
 	if err != nil {
 		fmt.Println("err", err)
