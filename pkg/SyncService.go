@@ -126,11 +126,11 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			impl.logger.Errorw("error in marshaling json", "err", err)
 			continue
 		}
-		_, _, _, _, err = impl.helmRepoManager.ValuesJson(baseurl, chartVersion)
+		/*_, _, _, _, err = impl.helmRepoManager.ValuesJson(baseurl, chartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in getting values yaml", "err", err)
 			continue
-		}
+		}*/
 		/*if err != nil {
 			impl.logger.Errorw("error in getting values yaml", "err", err)
 			continue
