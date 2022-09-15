@@ -3,8 +3,6 @@ package pkg
 import (
 	"encoding/json"
 	"github.com/devtron-labs/chart-sync/internal/sql"
-	"github.com/ghodss/yaml"
-	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/repo"
 	"time"
@@ -123,13 +121,17 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			//already present
 			break
 		}
-		chartVersionJson, err := json.Marshal(chartVersion)
+		_, err := json.Marshal(chartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in marshaling json", "err", err)
 			continue
 		}
-		rawValues, readme, valuesSchemaJson, notes, err := impl.helmRepoManager.ValuesJson(baseurl, chartVersion)
+		_, _, _, _, err = impl.helmRepoManager.ValuesJson(baseurl, chartVersion)
 		if err != nil {
+			impl.logger.Errorw("error in getting values yaml", "err", err)
+			continue
+		}
+		/*if err != nil {
 			impl.logger.Errorw("error in getting values yaml", "err", err)
 			continue
 		}
@@ -167,7 +169,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			Notes:            notes,
 			AppStore:         nil,
 		}
-		appVersions = append(appVersions, application)
+		appVersions = append(appVersions, application)*/
 	}
 	if len(appVersions) == 0 {
 		impl.logger.Infow("no change for ", "app", appId)
@@ -177,7 +179,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 	if err != nil {
 		impl.logger.Errorw("error in updating", "totalIn", len(*chartVersions), "totalOut", len(appVersions), "err", err)
 		return err
-	}*/
+	}
 	var latestFlagAppVersions []*sql.AppStoreApplicationVersion
 	latestCreated, err := impl.appStoreApplicationVersionRepository.FindLatestCreated(appId)
 	if err != nil {
@@ -199,6 +201,6 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 	if err != nil {
 		impl.logger.Errorw("error in marking latest", "err", err)
 		return err
-	}
+	}*/
 	return nil
 }
