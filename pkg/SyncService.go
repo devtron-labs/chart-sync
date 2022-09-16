@@ -140,38 +140,38 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			isAnyChartVersionFound = true
 		}
 
+		application := &sql.AppStoreApplicationVersion{
+			Id:          0,
+			Version:     chartVersion.Version,
+			AppVersion:  chartVersion.AppVersion,
+			Created:     chartVersion.Created,
+			Deprecated:  chartVersion.Deprecated,
+			Description: chartVersion.Description,
+			Digest:      chartVersion.Digest,
+			Icon:        chartVersion.Icon,
+			Name:        chartVersion.Name,
+			//Source:      chartVersion.Sources, //FIXME
+			Home:       chartVersion.Home,
+			ValuesYaml: string(jsonByte),
+			ChartYaml:  string(chartVersionJson),
+			Latest:     false,
+			AppStoreId: appId,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				UpdatedOn: time.Now(),
+				CreatedBy: 1,
+				UpdatedBy: 1,
+			},
+			RawValues:        rawValues,
+			Readme:           readme,
+			ValuesSchemaJson: valuesSchemaJson,
+			Notes:            notes,
+			AppStore:         nil,
+		}
+		appVersions = append(appVersions, application)
+
 		// save 20 versions and reset the array (as memory would go increasing if save on one-go)
-		if len(appVersions) < impl.configuration.AppStoreAppVersionsSaveChunkSize {
-			application := &sql.AppStoreApplicationVersion{
-				Id:          0,
-				Version:     chartVersion.Version,
-				AppVersion:  chartVersion.AppVersion,
-				Created:     chartVersion.Created,
-				Deprecated:  chartVersion.Deprecated,
-				Description: chartVersion.Description,
-				Digest:      chartVersion.Digest,
-				Icon:        chartVersion.Icon,
-				Name:        chartVersion.Name,
-				//Source:      chartVersion.Sources, //FIXME
-				Home:       chartVersion.Home,
-				ValuesYaml: string(jsonByte),
-				ChartYaml:  string(chartVersionJson),
-				Latest:     false,
-				AppStoreId: appId,
-				AuditLog: sql.AuditLog{
-					CreatedOn: time.Now(),
-					UpdatedOn: time.Now(),
-					CreatedBy: 1,
-					UpdatedBy: 1,
-				},
-				RawValues:        rawValues,
-				Readme:           readme,
-				ValuesSchemaJson: valuesSchemaJson,
-				Notes:            notes,
-				AppStore:         nil,
-			}
-			appVersions = append(appVersions, application)
-		} else {
+		if len(appVersions) == impl.configuration.AppStoreAppVersionsSaveChunkSize {
 			// save into DB
 			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
 			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
