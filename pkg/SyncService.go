@@ -90,7 +90,7 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 			id = app.Id
 		}
 		//update entries if any  id, chartVersions
-		impl.logger.Infow("handling all versions of chart", "name", name, "repoName", repo.Name)
+		impl.logger.Infow("handling all versions of chart", "repoName", repo.Name, "chartName", name, "chartVersions", len(chartVersions))
 		err := impl.updateChartVersions(id, &chartVersions, repo.Url)
 		if err != nil {
 			impl.logger.Errorw("error in updating chart versions", "err", err, "appId", id)
@@ -173,6 +173,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			appVersions = append(appVersions, application)
 		} else {
 			// save into DB
+			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
 			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
 			if err != nil {
 				impl.logger.Errorw("error in updating", "totalIn", len(*chartVersions), "totalOut", len(appVersions), "err", err)
@@ -190,6 +191,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 
 	// if any version left to save
 	if len(appVersions) > 0 {
+		impl.logger.Infow("saving remaining chart versions into DB", "versions", len(appVersions))
 		err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
 		if err != nil {
 			impl.logger.Errorw("error in updating", "totalIn", len(*chartVersions), "totalOut", len(appVersions), "err", err)
