@@ -116,6 +116,7 @@ func get(href string) (*bytes.Buffer, error) {
 	transport := &http.Transport{
 		DisableCompression: true,
 		Proxy:              http.ProxyFromEnvironment,
+		DisableKeepAlives:  true,
 	}
 
 	client := &http.Client{
