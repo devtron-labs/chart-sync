@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/devtron-labs/chart-sync/internal/sql"
-	"github.com/devtron-labs/chart-sync/util"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/repo"
+	"io"
+	"net/http"
+	"time"
 
 	"strings"
 )
@@ -60,12 +63,11 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 		return "", "", "", "", fmt.Errorf("failed to parse %s as URL: %v", baseurl, err)
 	}
 
-	byteArr, err := util.ReadFromUrlWithRetry(absoluteChartURL)
+	c, err := get(absoluteChartURL)
 	if err != nil {
 		fmt.Println("err", err)
 		return "", "", "", "", err
 	}
-	c := bytes.NewBuffer(byteArr)
 	chart, err := loader.LoadArchive(c)
 	if err != nil {
 		fmt.Println("err", err)
@@ -99,4 +101,39 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 	}
 
 	return rawValues, readme, string(chart.Schema), notes, err
+}
+
+func get(href string) (*bytes.Buffer, error) {
+	buf := bytes.NewBuffer(nil)
+
+	// Set a helm specific user agent so that a repo server and metrics can
+	// separate helm calls from other tools interacting with repos.
+	req, err := http.NewRequest("GET", href, nil)
+	if err != nil {
+		return buf, err
+	}
+
+	transport := &http.Transport{
+		DisableCompression: true,
+		Proxy:              http.ProxyFromEnvironment,
+	}
+
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   time.Duration(30) * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return buf, err
+	}
+	if resp.StatusCode != 200 {
+		return buf, errors.Errorf("failed to fetch %s : %s", href, resp.Status)
+	}
+
+	_, err = io.Copy(buf, resp.Body)
+	fmt.Println("DEBUGGING copied...")
+	resp.Body.Close()
+	fmt.Println("DEBUGGING closed...")
+	return buf, err
 }
