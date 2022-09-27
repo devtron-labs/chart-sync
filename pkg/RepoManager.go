@@ -1,8 +1,10 @@
 package pkg
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/devtron-labs/chart-sync/internal/sql"
+	"github.com/devtron-labs/chart-sync/util"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
@@ -57,15 +59,13 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 	if err != nil {
 		return "", "", "", "", fmt.Errorf("failed to parse %s as URL: %v", baseurl, err)
 	}
-	httpGetter, err := getter.NewHTTPGetter(getter.WithURL(absoluteChartURL))
-	if err != nil {
-		return "", "", "", "", err
-	}
-	c, err := httpGetter.Get(absoluteChartURL)
+
+	byteArr, err := util.ReadFromUrlWithRetry(absoluteChartURL)
 	if err != nil {
 		fmt.Println("err", err)
 		return "", "", "", "", err
 	}
+	c := bytes.NewBuffer(byteArr)
 	chart, err := loader.LoadArchive(c)
 	if err != nil {
 		fmt.Println("err", err)

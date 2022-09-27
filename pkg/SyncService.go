@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/chart-sync/internal"
 	"github.com/devtron-labs/chart-sync/internal/sql"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
@@ -13,27 +14,31 @@ import (
 type SyncService interface {
 	Sync() (interface{}, error)
 }
+
 type SyncServiceImpl struct {
 	chartRepoRepository                  sql.ChartRepoRepository
 	logger                               *zap.SugaredLogger
 	helmRepoManager                      HelmRepoManager
 	appStoreRepository                   sql.AppStoreRepository
 	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository
+	configuration                        *internal.Configuration
 }
 
 func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
 	logger *zap.SugaredLogger,
 	helmRepoManager HelmRepoManager,
 	appStoreRepository sql.AppStoreRepository,
-	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository, ) *SyncServiceImpl {
+	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository, configuration *internal.Configuration) *SyncServiceImpl {
 	return &SyncServiceImpl{
 		chartRepoRepository:                  chartRepoRepository,
 		logger:                               logger,
 		helmRepoManager:                      helmRepoManager,
 		appStoreRepository:                   appStoreRepository,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
+		configuration:                        configuration,
 	}
 }
+
 func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 	repos, err := impl.chartRepoRepository.GetAll()
 	if err != nil {
@@ -41,6 +46,7 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 		return nil, err
 	}
 	for _, repo := range repos {
+		impl.logger.Infow("syncing repo", "name", repo.Name)
 		err := impl.syncRepo(repo)
 		if err != nil {
 			impl.logger.Errorw("repo sync error", "repo", repo)
@@ -84,7 +90,7 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 			id = app.Id
 		}
 		//update entries if any  id, chartVersions
-		impl.logger.Infow("updating app", "name", name)
+		impl.logger.Infow("handling all versions of chart", "repoName", repo.Name, "chartName", name, "chartVersions", len(chartVersions))
 		err := impl.updateChartVersions(id, &chartVersions, repo.Url)
 		if err != nil {
 			impl.logger.Errorw("error in updating chart versions", "err", err, "appId", id)
@@ -106,9 +112,11 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		applicationVersionMaps[applicationVersion.Version] = applicationVersion.Id
 	}
 	var appVersions []*sql.AppStoreApplicationVersion
+	var isAnyChartVersionFound bool
 	for _, chartVersion := range *chartVersions {
 		if _, ok := applicationVersionMaps[chartVersion.Version]; ok {
 			//already present
+			impl.logger.Warnw("ignoring chart version as this already exists", "appStoreId", appId, "chartVersion", chartVersion.Version)
 			break
 		}
 		chartVersionJson, err := json.Marshal(chartVersion)
@@ -127,6 +135,11 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			impl.logger.Errorw("error in getting values yaml", "err", err)
 			continue
 		}
+
+		if !isAnyChartVersionFound {
+			isAnyChartVersionFound = true
+		}
+
 		application := &sql.AppStoreApplicationVersion{
 			Id:          0,
 			Version:     chartVersion.Version,
@@ -156,16 +169,36 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			AppStore:         nil,
 		}
 		appVersions = append(appVersions, application)
+
+		// save 20 versions and reset the array (as memory would go increasing if save on one-go)
+		if len(appVersions) == impl.configuration.AppStoreAppVersionsSaveChunkSize {
+			// save into DB
+			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
+			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
+			if err != nil {
+				impl.logger.Errorw("error in updating", "totalIn", len(*chartVersions), "totalOut", len(appVersions), "err", err)
+				return err
+			}
+			// reset the array
+			appVersions = nil
+		}
 	}
-	if len(appVersions) == 0 {
+
+	if !isAnyChartVersionFound {
 		impl.logger.Infow("no change for ", "app", appId)
 		return nil
 	}
-	err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
-	if err != nil {
-		impl.logger.Errorw("error in updating", "totalIn", len(*chartVersions), "totalOut", len(appVersions), "err", err)
-		return err
+
+	// if any version left to save
+	if len(appVersions) > 0 {
+		impl.logger.Infow("saving remaining chart versions into DB", "versions", len(appVersions))
+		err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
+		if err != nil {
+			impl.logger.Errorw("error in updating", "totalIn", len(*chartVersions), "totalOut", len(appVersions), "err", err)
+			return err
+		}
 	}
+
 	var latestFlagAppVersions []*sql.AppStoreApplicationVersion
 	latestCreated, err := impl.appStoreApplicationVersionRepository.FindLatestCreated(appId)
 	if err != nil {
