@@ -18,24 +18,42 @@
 package util
 
 import (
-	"errors"
+	"bytes"
 	"fmt"
+	"github.com/pkg/errors"
+	"helm.sh/helm/v3/pkg/cli"
+	"helm.sh/helm/v3/pkg/getter"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 )
 
-func ReadFromUrlWithRetry(url string) ([]byte, error) {
+func ReadFromUrlWithRetry(baseurl string, absoluteurl string, username string, password string) ([]byte, error) {
 	var (
-		err      error
-		response *http.Response
-		retries  = 3
+		err, errInGetUrl error
+		response         *bytes.Buffer
+		retries          = 3
 	)
+	getters := getter.All(&cli.EnvSettings{})
+	u, err := url.Parse(baseurl)
+	if err != nil {
+		return nil, errors.Errorf("invalid chart URL format: %s", baseurl)
+	}
+	client, err := getters.ByScheme(u.Scheme)
+	if err != nil {
+		return nil, errors.Errorf("could not find protocol handler for: %s", u.Scheme)
+	}
 
 	for retries > 0 {
-		response, err = http.Get(url)
-		if err != nil {
+		response, errInGetUrl = client.Get(absoluteurl,
+			getter.WithURL(baseurl),
+			getter.WithInsecureSkipVerifyTLS(false),
+			getter.WithBasicAuth(username, password),
+		)
+
+		if errInGetUrl != nil {
 			retries -= 1
 			time.Sleep(1 * time.Second)
 		} else {
@@ -43,12 +61,13 @@ func ReadFromUrlWithRetry(url string) ([]byte, error) {
 		}
 	}
 	if response != nil {
-		defer response.Body.Close()
-		statusCode := response.StatusCode
-		if statusCode != http.StatusOK {
-			return nil, errors.New(fmt.Sprintf("Error in getting content from url - %s. Status code : %s", url, strconv.Itoa(statusCode)))
+		resp, err := http.Get(absoluteurl)
+		defer resp.Body.Close()
+		statusCode := resp.StatusCode
+		if statusCode != http.StatusOK && errInGetUrl != nil {
+			return nil, errors.New(fmt.Sprintf("Error in getting content from url - %s. Status code : %s", absoluteurl, strconv.Itoa(statusCode)))
 		}
-		body, err := ioutil.ReadAll(response.Body)
+		body, err := ioutil.ReadAll(response)
 		if err != nil {
 			return nil, err
 		}

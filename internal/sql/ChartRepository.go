@@ -14,8 +14,8 @@ type ChartRepo struct {
 	Active    bool     `sql:"active"`
 	Default   bool     `sql:"is_default"`
 	External  bool     `sql:"external"`
-	Username  string   `sql:"-"`
-	Password  string   `sql:"-"`
+	Username  string   `sql:"user_name"`
+	Password  string   `sql:"password"`
 	CertFile  string   `sql:"-"`
 	KeyFile   string   `sql:"-"`
 	CAFile    string   `sql:"-"`
