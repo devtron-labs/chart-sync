@@ -49,7 +49,7 @@ func ReadFromUrlWithRetry(baseurl string, absoluteurl string, username string, p
 	for retries > 0 {
 		response, errInGetUrl = client.Get(absoluteurl,
 			getter.WithURL(baseurl),
-			getter.WithInsecureSkipVerifyTLS(false),
+			getter.WithInsecureSkipVerifyTLS(true),
 			getter.WithBasicAuth(username, password),
 		)
 
