@@ -2,7 +2,7 @@ FROM golang:1.19.3-alpine AS build-env
 
 RUN apk add --no-cache git gcc musl-dev
 RUN apk add --update make
-RUN go install github.com/google/wire/cmd/wire
+RUN go install github.com/google/wire/cmd/wire@latest
 WORKDIR /go/src/github.com/devtron-labs/chart-sync
 ADD . /go/src/github.com/devtron-labs/chart-sync
 RUN GO111MODULE=on GOOS=linux make
