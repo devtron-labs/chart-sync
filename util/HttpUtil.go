@@ -53,6 +53,7 @@ func ReadFromUrlWithRetry(baseurl string, absoluteurl string, username string, p
 			getter.WithBasicAuth(username, password),
 		)
 
+		fmt.Printf("prakash:- reacher in HTTPUTil ")
 		if errInGetUrl != nil {
 			retries -= 1
 			time.Sleep(1 * time.Second)
@@ -65,12 +66,14 @@ func ReadFromUrlWithRetry(baseurl string, absoluteurl string, username string, p
 		defer resp.Body.Close()
 		statusCode := resp.StatusCode
 		if statusCode != http.StatusOK && errInGetUrl != nil {
+			fmt.Printf("prakash:- response is not null but error in getting content from url")
 			return nil, errors.New(fmt.Sprintf("Error in getting content from url - %s. Status code : %s", absoluteurl, strconv.Itoa(statusCode)))
 		}
 		body, err := ioutil.ReadAll(response)
 		if err != nil {
 			return nil, err
 		}
+		fmt.Printf("prakash:- returning charts in byte format.")
 		return body, nil
 	}
 	return nil, err

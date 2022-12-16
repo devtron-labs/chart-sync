@@ -59,7 +59,7 @@ func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartV
 	if err != nil {
 		return "", "", "", "", fmt.Errorf("failed to parse %s as URL: %v", baseurl, err)
 	}
-
+	fmt.Printf("prakash:- going to fetch the charts from charts url inside index.yaml")
 	byteArr, err := util.ReadFromUrlWithRetry(baseurl, absoluteChartURL, username, password)
 	if err != nil {
 		fmt.Println("err", err)
