@@ -16,7 +16,7 @@ import (
 
 type HelmRepoManager interface {
 	LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.IndexFile, error)
-	ValuesJson(baseurl string, version *repo.ChartVersion, username string, password string) (rawValues string, readme string, valuesSchemaJson string, notes string, err error)
+	ValuesJson(baseurl string, version *repo.ChartVersion, username string, password string, secureWithTls bool) (rawValues string, readme string, valuesSchemaJson string, notes string, err error)
 }
 type HelmRepoManagerImpl struct {
 	logger *zap.SugaredLogger
@@ -35,7 +35,7 @@ func (impl *HelmRepoManagerImpl) LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.
 		CertFile:              chartRepo.CertFile,
 		KeyFile:               chartRepo.KeyFile,
 		CAFile:                chartRepo.CAFile,
-		InsecureSkipTLSverify: false,
+		InsecureSkipTLSverify: !chartRepo.SecuredWithTls,
 	}
 	helmRepo, err := repo.NewChartRepository(helmRepoConfig, getter.All(&cli.EnvSettings{}))
 
@@ -54,13 +54,13 @@ func (impl *HelmRepoManagerImpl) LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.
 	return index, nil
 }
 
-func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartVersion, username string, password string) (rawValues string, readme string, valuesSchemaJson string, notes string, err error) {
+func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartVersion, username string, password string, secureWithTls bool) (rawValues string, readme string, valuesSchemaJson string, notes string, err error) {
 	absoluteChartURL, err := repo.ResolveReferenceURL(baseurl, version.URLs[0])
 	if err != nil {
 		return "", "", "", "", fmt.Errorf("failed to parse %s as URL: %v", baseurl, err)
 	}
 
-	byteArr, err := util.ReadFromUrlWithRetry(baseurl, absoluteChartURL, username, password)
+	byteArr, err := util.ReadFromUrlWithRetry(baseurl, absoluteChartURL, username, password, secureWithTls)
 	if err != nil {
 		fmt.Println("err", err)
 		return "", "", "", "", err

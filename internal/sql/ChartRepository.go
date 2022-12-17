@@ -7,18 +7,19 @@ import (
 //---------------------------chart repository------------------
 
 type ChartRepo struct {
-	tableName struct{} `sql:"chart_repo"`
-	Id        int      `sql:"id,pk"`
-	Name      string   `sql:"name"`
-	Url       string   `sql:"url"`
-	Active    bool     `sql:"active"`
-	Default   bool     `sql:"is_default"`
-	External  bool     `sql:"external"`
-	Username  string   `sql:"user_name"`
-	Password  string   `sql:"password"`
-	CertFile  string   `sql:"-"`
-	KeyFile   string   `sql:"-"`
-	CAFile    string   `sql:"-"`
+	tableName      struct{} `sql:"chart_repo"`
+	Id             int      `sql:"id,pk"`
+	Name           string   `sql:"name"`
+	Url            string   `sql:"url"`
+	Active         bool     `sql:"active"`
+	Default        bool     `sql:"is_default"`
+	External       bool     `sql:"external"`
+	Username       string   `sql:"user_name"`
+	Password       string   `sql:"password"`
+	CertFile       string   `sql:"-"`
+	KeyFile        string   `sql:"-"`
+	CAFile         string   `sql:"-"`
+	SecuredWithTls bool     `sql:"secured"`
 	AuditLog
 }
 

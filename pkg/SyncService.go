@@ -91,7 +91,7 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 		}
 		//update entries if any  id, chartVersions
 		impl.logger.Infow("handling all versions of chart", "repoName", repo.Name, "chartName", name, "chartVersions", len(chartVersions))
-		err := impl.updateChartVersions(id, &chartVersions, repo.Url, repo.Username, repo.Password)
+		err := impl.updateChartVersions(id, &chartVersions, repo.Url, repo.Username, repo.Password, repo.SecuredWithTls)
 		if err != nil {
 			impl.logger.Errorw("error in updating chart versions", "err", err, "appId", id)
 			continue
@@ -100,7 +100,7 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 	return nil
 }
 
-func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.ChartVersions, baseurl string, username string, password string) error {
+func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.ChartVersions, baseurl string, username string, password string, secureWithTls bool) error {
 	applicationVersions, err := impl.appStoreApplicationVersionRepository.FindVersionsByAppStoreId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting application versions ", "err", err, "appId", appId)
@@ -124,7 +124,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			impl.logger.Errorw("error in marshaling json", "err", err)
 			continue
 		}
-		rawValues, readme, valuesSchemaJson, notes, err := impl.helmRepoManager.ValuesJson(baseurl, chartVersion, username, password)
+		rawValues, readme, valuesSchemaJson, notes, err := impl.helmRepoManager.ValuesJson(baseurl, chartVersion, username, password, secureWithTls)
 		if err != nil {
 			impl.logger.Errorw("error in getting values yaml", "err", err)
 			continue

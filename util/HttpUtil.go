@@ -30,7 +30,7 @@ import (
 	"time"
 )
 
-func ReadFromUrlWithRetry(baseurl string, absoluteurl string, username string, password string) ([]byte, error) {
+func ReadFromUrlWithRetry(baseurl string, absoluteurl string, username string, password string, secureWithTls bool) ([]byte, error) {
 	var (
 		err, errInGetUrl error
 		response         *bytes.Buffer
@@ -49,7 +49,7 @@ func ReadFromUrlWithRetry(baseurl string, absoluteurl string, username string, p
 	for retries > 0 {
 		response, errInGetUrl = client.Get(absoluteurl,
 			getter.WithURL(baseurl),
-			getter.WithInsecureSkipVerifyTLS(true),
+			getter.WithInsecureSkipVerifyTLS(!secureWithTls),
 			getter.WithBasicAuth(username, password),
 		)
 
