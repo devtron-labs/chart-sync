@@ -30,7 +30,7 @@ import (
 	"time"
 )
 
-func GetFromPublicUrlWithRetry(url string) ([]byte, error) {
+func GetFromPublicUrlWithRetry(url string) (*bytes.Buffer, error) {
 	var (
 		err      error
 		response *http.Response
@@ -56,12 +56,12 @@ func GetFromPublicUrlWithRetry(url string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		return body, nil
+		return bytes.NewBuffer(body), nil
 	}
 	return nil, err
 }
 
-func GetFromPrivateUrlWithRetry(baseurl string, absoluteUrl string, username string, password string, allowInsecureConnection bool) ([]byte, error) {
+func GetFromPrivateUrlWithRetry(baseurl string, absoluteUrl string, username string, password string, allowInsecureConnection bool) (*bytes.Buffer, error) {
 	var (
 		err, errInGetUrl error
 		response         *bytes.Buffer
@@ -91,18 +91,6 @@ func GetFromPrivateUrlWithRetry(baseurl string, absoluteUrl string, username str
 			break
 		}
 	}
-	if response != nil {
-		resp, err := http.Get(absoluteUrl)
-		defer resp.Body.Close()
-		statusCode := resp.StatusCode
-		if statusCode != http.StatusOK && errInGetUrl != nil {
-			return nil, errors.New(fmt.Sprintf("Error in getting content from url - %s. Status code : %s", absoluteUrl, strconv.Itoa(statusCode)))
-		}
-		body, err := ioutil.ReadAll(response)
-		if err != nil {
-			return nil, err
-		}
-		return body, nil
-	}
-	return nil, err
+
+	return response, errInGetUrl
 }
