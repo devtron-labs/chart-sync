@@ -30,7 +30,38 @@ import (
 	"time"
 )
 
-func ReadFromUrlWithRetry(baseurl string, absoluteurl string, username string, password string, secureWithTls bool) ([]byte, error) {
+func ReadFromPublicUrlWithRetry(url string) ([]byte, error) {
+	var (
+		err      error
+		response *http.Response
+		retries  = 3
+	)
+
+	for retries > 0 {
+		response, err = http.Get(url)
+		if err != nil {
+			retries -= 1
+			time.Sleep(1 * time.Second)
+		} else {
+			break
+		}
+	}
+	if response != nil {
+		defer response.Body.Close()
+		statusCode := response.StatusCode
+		if statusCode != http.StatusOK {
+			return nil, errors.New(fmt.Sprintf("Error in getting content from url - %s. Status code : %s", url, strconv.Itoa(statusCode)))
+		}
+		body, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return nil, err
+		}
+		return body, nil
+	}
+	return nil, err
+}
+
+func ReadFromPrivateUrlWithRetry(baseurl string, absoluteUrl string, username string, password string, allowInsecureConnection bool) ([]byte, error) {
 	var (
 		err, errInGetUrl error
 		response         *bytes.Buffer
@@ -47,9 +78,9 @@ func ReadFromUrlWithRetry(baseurl string, absoluteurl string, username string, p
 	}
 
 	for retries > 0 {
-		response, errInGetUrl = client.Get(absoluteurl,
+		response, errInGetUrl = client.Get(absoluteUrl,
 			getter.WithURL(baseurl),
-			getter.WithInsecureSkipVerifyTLS(!secureWithTls),
+			getter.WithInsecureSkipVerifyTLS(allowInsecureConnection),
 			getter.WithBasicAuth(username, password),
 		)
 
@@ -61,11 +92,11 @@ func ReadFromUrlWithRetry(baseurl string, absoluteurl string, username string, p
 		}
 	}
 	if response != nil {
-		resp, err := http.Get(absoluteurl)
+		resp, err := http.Get(absoluteUrl)
 		defer resp.Body.Close()
 		statusCode := resp.StatusCode
 		if statusCode != http.StatusOK && errInGetUrl != nil {
-			return nil, errors.New(fmt.Sprintf("Error in getting content from url - %s. Status code : %s", absoluteurl, strconv.Itoa(statusCode)))
+			return nil, errors.New(fmt.Sprintf("Error in getting content from url - %s. Status code : %s", absoluteUrl, strconv.Itoa(statusCode)))
 		}
 		body, err := ioutil.ReadAll(response)
 		if err != nil {
