@@ -30,7 +30,7 @@ import (
 	"time"
 )
 
-func ReadFromPublicUrlWithRetry(url string) ([]byte, error) {
+func GetFromPublicUrlWithRetry(url string) ([]byte, error) {
 	var (
 		err      error
 		response *http.Response
@@ -61,7 +61,7 @@ func ReadFromPublicUrlWithRetry(url string) ([]byte, error) {
 	return nil, err
 }
 
-func ReadFromPrivateUrlWithRetry(baseurl string, absoluteUrl string, username string, password string, allowInsecureConnection bool) ([]byte, error) {
+func GetFromPrivateUrlWithRetry(baseurl string, absoluteUrl string, username string, password string, allowInsecureConnection bool) ([]byte, error) {
 	var (
 		err, errInGetUrl error
 		response         *bytes.Buffer
