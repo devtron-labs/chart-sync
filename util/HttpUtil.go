@@ -73,6 +73,7 @@ func GetFromPrivateUrlWithRetry(baseurl string, absoluteUrl string, username str
 		return nil, errors.Errorf("invalid chart URL format: %s", baseurl)
 	}
 	client, err := getters.ByScheme(u.Scheme)
+
 	if err != nil {
 		return nil, errors.Errorf("could not find protocol handler for: %s", u.Scheme)
 	}
