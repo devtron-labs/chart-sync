@@ -18,15 +18,19 @@
 package util
 
 import (
-	"errors"
+	"bytes"
 	"fmt"
+	"github.com/pkg/errors"
+	"helm.sh/helm/v3/pkg/cli"
+	"helm.sh/helm/v3/pkg/getter"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 )
 
-func ReadFromUrlWithRetry(url string) ([]byte, error) {
+func GetFromPublicUrlWithRetry(url string) (*bytes.Buffer, error) {
 	var (
 		err      error
 		response *http.Response
@@ -52,7 +56,42 @@ func ReadFromUrlWithRetry(url string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		return body, nil
+		return bytes.NewBuffer(body), nil
 	}
 	return nil, err
+}
+
+func GetFromPrivateUrlWithRetry(baseurl string, absoluteUrl string, username string, password string, allowInsecureConnection bool) (*bytes.Buffer, error) {
+	var (
+		err, errInGetUrl error
+		response         *bytes.Buffer
+		retries          = 3
+	)
+	getters := getter.All(&cli.EnvSettings{})
+	u, err := url.Parse(baseurl)
+	if err != nil {
+		return nil, errors.Errorf("invalid chart URL format: %s", baseurl)
+	}
+	client, err := getters.ByScheme(u.Scheme)
+
+	if err != nil {
+		return nil, errors.Errorf("could not find protocol handler for: %s", u.Scheme)
+	}
+
+	for retries > 0 {
+		response, errInGetUrl = client.Get(absoluteUrl,
+			getter.WithURL(baseurl),
+			getter.WithInsecureSkipVerifyTLS(allowInsecureConnection),
+			getter.WithBasicAuth(username, password),
+		)
+
+		if errInGetUrl != nil {
+			retries -= 1
+			time.Sleep(1 * time.Second)
+		} else {
+			break
+		}
+	}
+
+	return response, errInGetUrl
 }

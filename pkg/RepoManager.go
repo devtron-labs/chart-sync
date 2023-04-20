@@ -16,7 +16,7 @@ import (
 
 type HelmRepoManager interface {
 	LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.IndexFile, error)
-	ValuesJson(baseurl string, version *repo.ChartVersion) (rawValues string, readme string, valuesSchemaJson string, notes string, err error)
+	ValuesJson(repoUrl string, version *repo.ChartVersion, username string, password string, allowInsecureConnection bool) (rawValues string, readme string, valuesSchemaJson string, notes string, err error)
 }
 type HelmRepoManagerImpl struct {
 	logger *zap.SugaredLogger
@@ -35,7 +35,7 @@ func (impl *HelmRepoManagerImpl) LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.
 		CertFile:              chartRepo.CertFile,
 		KeyFile:               chartRepo.KeyFile,
 		CAFile:                chartRepo.CAFile,
-		InsecureSkipTLSverify: false,
+		InsecureSkipTLSverify: chartRepo.AllowInsecureConnection,
 	}
 	helmRepo, err := repo.NewChartRepository(helmRepoConfig, getter.All(&cli.EnvSettings{}))
 
@@ -54,19 +54,24 @@ func (impl *HelmRepoManagerImpl) LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.
 	return index, nil
 }
 
-func (impl *HelmRepoManagerImpl) ValuesJson(baseurl string, version *repo.ChartVersion) (rawValues string, readme string, valuesSchemaJson string, notes string, err error) {
-	absoluteChartURL, err := repo.ResolveReferenceURL(baseurl, version.URLs[0])
+func (impl *HelmRepoManagerImpl) ValuesJson(repoUrl string, version *repo.ChartVersion, username string, password string, allowInsecureConnection bool) (rawValues string, readme string, valuesSchemaJson string, notes string, err error) {
+	absoluteChartURL, err := repo.ResolveReferenceURL(repoUrl, version.URLs[0])
 	if err != nil {
-		return "", "", "", "", fmt.Errorf("failed to parse %s as URL: %v", baseurl, err)
+		return "", "", "", "", fmt.Errorf("failed to parse %s as URL: %v", repoUrl, err)
 	}
 
-	byteArr, err := util.ReadFromUrlWithRetry(absoluteChartURL)
+	var byteBuffer *bytes.Buffer
+	if len(username) > 0 && len(password) > 0 {
+		byteBuffer, err = util.GetFromPrivateUrlWithRetry(repoUrl, absoluteChartURL, username, password, allowInsecureConnection)
+	} else {
+		byteBuffer, err = util.GetFromPublicUrlWithRetry(absoluteChartURL)
+	}
+
 	if err != nil {
 		fmt.Println("err", err)
 		return "", "", "", "", err
 	}
-	c := bytes.NewBuffer(byteArr)
-	chart, err := loader.LoadArchive(c)
+	chart, err := loader.LoadArchive(byteBuffer)
 	if err != nil {
 		fmt.Println("err", err)
 		return "", "", "", "", err
