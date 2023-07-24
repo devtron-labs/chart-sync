@@ -15,7 +15,7 @@ RUN apt clean autoclean
 RUN apt autoremove -y && rm -rf /var/lib/apt/lists/*
 COPY --from=build-env  /go/src/github.com/devtron-labs/chart-sync/chart-sync .
 
-RUN adduser -D devtron
+RUN adduser -ms /bin/bash devtron
 RUN chown -R devtron:devtron ./chart-sync
 USER devtron
 
