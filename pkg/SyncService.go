@@ -158,7 +158,7 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 		if !ok {
 			//new app create AppStore
 			app := &sql.AppStore{
-				Name:                  chartName,
+				Name:                  ociRepo.Id,
 				DockerArtifactStoreId: ociRepo.Id,
 				CreatedOn:             time.Now(),
 				UpdatedOn:             time.Now(),
@@ -402,7 +402,7 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 			Icon:        metaData.Icon,
 			Home:        metaData.Home,
 			Deprecated:  metaData.Deprecated,
-			Name:        ociRepo.Id,
+			Name:        metaData.Name,
 			ValuesYaml:  string(jsonByte),
 			ChartYaml:   string(chartVersionJson),
 			Latest:      false,
