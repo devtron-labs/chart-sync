@@ -27,13 +27,15 @@ func InitializeApp() (*App, error) {
 	}
 	chartRepoRepositoryImpl := sql.NewChartRepoRepositoryImpl(db)
 	helmRepoManagerImpl := pkg.NewHelmRepoManagerImpl(sugaredLogger)
+	dockerArtifactStoreRepositoryImpl := sql.NewDockerArtifactStoreRepositoryImpl(db)
+	ociRegistryConfigRepositoryImpl := sql.NewOCIRegistryConfigRepositoryImpl(db)
 	appStoreRepositoryImpl := sql.NewAppStoreRepositoryImpl(sugaredLogger, db)
 	appStoreApplicationVersionRepositoryImpl := sql.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	configuration, err := internal.ParseConfiguration()
 	if err != nil {
 		return nil, err
 	}
-	syncServiceImpl := pkg.NewSyncServiceImpl(chartRepoRepositoryImpl, sugaredLogger, helmRepoManagerImpl, appStoreRepositoryImpl, appStoreApplicationVersionRepositoryImpl, configuration)
+	syncServiceImpl := pkg.NewSyncServiceImpl(chartRepoRepositoryImpl, sugaredLogger, helmRepoManagerImpl, dockerArtifactStoreRepositoryImpl, ociRegistryConfigRepositoryImpl, appStoreRepositoryImpl, appStoreApplicationVersionRepositoryImpl, configuration)
 	app := NewApp(sugaredLogger, db, syncServiceImpl)
 	return app, nil
 }

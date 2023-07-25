@@ -7,6 +7,7 @@ import (
 )
 
 type AppStoreRepository interface {
+	FindByStoreId(storeId string) (appStores []*AppStore, err error)
 	FindByRepoId(repoId int) (appStores []*AppStore, err error)
 	Save(appStore *AppStore) error
 }
@@ -21,19 +22,25 @@ func NewAppStoreRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB) *
 }
 
 type AppStore struct {
-	TableName        struct{}  `sql:"app_store"`
-	Id               int       `sql:"id,pk"`
-	Name             string    `sql:"name"`
-	ChartRepoId      int       `sql:"chart_repo_id"`
-	Active           bool      `sql:"active"`
-	ChartGitLocation string    `sql:"chart_git_location"`
-	CreatedOn        time.Time `sql:"created_on"`
-	UpdatedOn        time.Time `sql:"updated_on"`
-	ChartRepo        ChartRepo
+	TableName             struct{}  `sql:"app_store"`
+	Id                    int       `sql:"id,pk"`
+	Name                  string    `sql:"name"`
+	ChartRepoId           int       `sql:"chart_repo_id"`
+	DockerArtifactStoreId string    `sql:"docker_artifact_store_id"`
+	Active                bool      `sql:"active"`
+	ChartGitLocation      string    `sql:"chart_git_location"`
+	CreatedOn             time.Time `sql:"created_on"`
+	UpdatedOn             time.Time `sql:"updated_on"`
+	ChartRepo             ChartRepo
 }
 
 func (impl *AppStoreRepositoryImpl) FindByRepoId(repoId int) (appStores []*AppStore, err error) {
 	err = impl.dbConnection.Model(&appStores).Where("chart_repo_id =?", repoId).Select()
+	return appStores, err
+}
+
+func (impl *AppStoreRepositoryImpl) FindByStoreId(storeId string) (appStores []*AppStore, err error) {
+	err = impl.dbConnection.Model(&appStores).Where("docker_artifact_store_id =?", storeId).Select()
 	return appStores, err
 }
 

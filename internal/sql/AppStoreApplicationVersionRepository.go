@@ -10,6 +10,7 @@ type AppStoreApplicationVersionRepository interface {
 	FindVersionsByAppStoreId(appStoreId int) ([]*AppStoreApplicationVersion, error)
 	Save(versions *[]*AppStoreApplicationVersion) error
 	FindLatestCreated(appStoreId int) (*AppStoreApplicationVersion, error)
+	FindOneByAppStoreIdAndVersion(appStoreId int, version string) (*AppStoreApplicationVersion, error)
 	FindLatest(appStoreId int) (*AppStoreApplicationVersion, error)
 	Update(appVersions []*AppStoreApplicationVersion) error
 }
@@ -24,7 +25,7 @@ func NewAppStoreApplicationVersionRepositoryImpl(Logger *zap.SugaredLogger, dbCo
 }
 
 type AppStoreApplicationVersion struct {
-	TableName   struct{}  `sql:"app_store_application_version"`
+	TableName   struct{}  `sql:"app_store_application_version" pg:",discard_unknown_columns"`
 	Id          int       `sql:"id,pk"`
 	Version     string    `sql:"version"`
 	AppVersion  string    `sql:"app_version"`
@@ -71,6 +72,17 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindLatestCreated(appStoreI
 		Select()
 	return appStoreApplicationVersion, err
 }
+
+func (impl AppStoreApplicationVersionRepositoryImpl) FindOneByAppStoreIdAndVersion(appStoreId int, version string) (*AppStoreApplicationVersion, error) {
+	appStoreApplicationVersion := &AppStoreApplicationVersion{}
+	err := impl.dbConnection.Model(appStoreApplicationVersion).
+		Where("app_store_id =?", appStoreId).
+		Where("version =?", version).
+		Limit(1).
+		Select()
+	return appStoreApplicationVersion, err
+}
+
 func (impl AppStoreApplicationVersionRepositoryImpl) FindLatest(appStoreId int) (*AppStoreApplicationVersion, error) {
 	appStoreApplicationVersion := &AppStoreApplicationVersion{}
 	err := impl.dbConnection.Model(appStoreApplicationVersion).

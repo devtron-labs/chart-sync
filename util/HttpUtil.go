@@ -20,6 +20,7 @@ package util
 import (
 	"bytes"
 	"fmt"
+	"github.com/devtron-labs/chart-sync/internal/sql"
 	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"
@@ -94,4 +95,15 @@ func GetFromPrivateUrlWithRetry(baseurl string, absoluteUrl string, username str
 	}
 
 	return response, errInGetUrl
+}
+
+func IsValidRegistryChartConfiguration(ociRegistry *sql.DockerArtifactStore) bool {
+	if ociRegistry.OCIRegistryConfig == nil ||
+		len(ociRegistry.OCIRegistryConfig) != 1 ||
+		ociRegistry.OCIRegistryConfig[0].RepositoryType != sql.OCI_REGISRTY_REPO_TYPE_CHART ||
+		ociRegistry.OCIRegistryConfig[0].RepositoryAction == sql.STORAGE_ACTION_TYPE_PUSH ||
+		ociRegistry.OCIRegistryConfig[0].RepositoryList == "" {
+		return false
+	}
+	return true
 }
