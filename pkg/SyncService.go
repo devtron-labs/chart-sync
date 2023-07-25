@@ -154,11 +154,12 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 			impl.logger.Errorw("error in fetching OCI repository tags", "repository url", ref, "err", err)
 			continue
 		}
+		chartName = util.GetRepoPathAndChartNameFromRepoName(chartName)
 		id, ok := applicationId[chartName]
 		if !ok {
 			//new app create AppStore
 			app := &sql.AppStore{
-				Name:                  ociRepo.Id,
+				Name:                  chartName,
 				DockerArtifactStoreId: ociRepo.Id,
 				CreatedOn:             time.Now(),
 				UpdatedOn:             time.Now(),
