@@ -244,7 +244,7 @@ func (impl *HelmRepoManagerImpl) LoadChartFromOCIRepo(client *registry.Client, r
 		registry.PullOptWithProv(true),
 		registry.PullOptIgnoreMissingProv(true),
 	)
-	if err != nil || chartDetails != nil || chartDetails.Chart != nil {
+	if err != nil || chartDetails == nil || chartDetails.Chart == nil {
 		if err == nil {
 			err = fmt.Errorf("error in pulling chart from registry, ChartRepo: %s", ref)
 		}
@@ -252,7 +252,7 @@ func (impl *HelmRepoManagerImpl) LoadChartFromOCIRepo(client *registry.Client, r
 		return nil, "", err
 	}
 	chart, err := loader.LoadArchive(bytes.NewBuffer(chartDetails.Chart.Data))
-	if err != nil || chart != nil {
+	if err != nil || chart == nil {
 		if err == nil {
 			err = fmt.Errorf("error in loading chart bytes, ChartRepo: %s", ref)
 		}
