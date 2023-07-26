@@ -28,7 +28,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -107,15 +106,4 @@ func IsValidRegistryChartConfiguration(ociRegistry *sql.DockerArtifactStore) boo
 		return false
 	}
 	return true
-}
-
-func GetRepoPathAndChartNameFromRepoName(chartName string) string {
-	// for helm repo push base path of repo name is assumed to be chart name
-	repositoryNameSplit := strings.Split(chartName, "/")
-	if len(repositoryNameSplit) == 1 {
-		chartName = repositoryNameSplit[0]
-	} else {
-		chartName = repositoryNameSplit[len(repositoryNameSplit)-1]
-	}
-	return chartName
 }
