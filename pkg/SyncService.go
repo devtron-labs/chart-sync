@@ -85,31 +85,32 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 				impl.logger.Errorw("repo sync error", "OCIRegistry", registryObj)
 			}
 		}
-	}
-	if impl.configuration.ChartProviderId == "*" {
-		repos, err = impl.chartRepoRepository.GetAll()
-		if err != nil {
-			impl.logger.Errorw("err in getting repo list", "err", err)
-			return nil, err
-		}
 	} else {
-		chartRepoId, err = strconv.Atoi(impl.configuration.ChartProviderId)
-		if err != nil {
-			impl.logger.Errorw("err in parsing ChartProviderId", "err", err)
-			return nil, err
+		if impl.configuration.ChartProviderId == "*" {
+			repos, err = impl.chartRepoRepository.GetAll()
+			if err != nil {
+				impl.logger.Errorw("err in getting repo list", "err", err)
+				return nil, err
+			}
+		} else {
+			chartRepoId, err = strconv.Atoi(impl.configuration.ChartProviderId)
+			if err != nil {
+				impl.logger.Errorw("err in parsing ChartProviderId", "err", err)
+				return nil, err
+			}
+			repo, err = impl.chartRepoRepository.FindById(chartRepoId)
+			if err != nil {
+				impl.logger.Errorw("err in getting repo list", "err", err)
+				return nil, err
+			}
+			repos = []*sql.ChartRepo{repo}
 		}
-		repo, err = impl.chartRepoRepository.FindById(chartRepoId)
-		if err != nil {
-			impl.logger.Errorw("err in getting repo list", "err", err)
-			return nil, err
-		}
-		repos = []*sql.ChartRepo{repo}
-	}
-	for _, repository := range repos {
-		impl.logger.Infow("syncing repo", "name", repository.Name)
-		err := impl.syncRepo(repository)
-		if err != nil {
-			impl.logger.Errorw("repo sync error", "repo", repository)
+		for _, repository := range repos {
+			impl.logger.Infow("syncing repo", "name", repository.Name)
+			err := impl.syncRepo(repository)
+			if err != nil {
+				impl.logger.Errorw("repo sync error", "repo", repository)
+			}
 		}
 	}
 	return nil, nil

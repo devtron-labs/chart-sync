@@ -93,7 +93,9 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerAr
 		Where("docker_artifact_store.id = ?", storeId).
 		Where("active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
-			return q.Where("deleted IS FALSE"), nil
+			return q.Where("deleted IS FALSE and " +
+				"repository_type='CHART' and " +
+				"(repository_action='PULL' or repository_action='PULL/PUSH')"), nil
 		}).
 		Select()
 	return &provider, err
