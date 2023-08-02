@@ -60,38 +60,25 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 		ociRegistries []*sql.DockerArtifactStore
 		ociRegistry   *sql.DockerArtifactStore
 	)
-	if impl.configuration.IsOCIRegistry {
-		if impl.configuration.ChartProviderId == "*" {
-			ociRegistries, err = impl.dockerArtifactStoreRepository.FindAllChartProviders()
-			if err != nil {
-				impl.logger.Errorw("err in getting OCI Registries list", "err", err)
-				return nil, err
-			}
-		} else {
+	if impl.configuration.ChartProviderId == "*" {
+		ociRegistries, err = impl.dockerArtifactStoreRepository.FindAllChartProviders()
+		if err != nil {
+			impl.logger.Errorw("err in getting OCI Registries list", "err", err)
+			return nil, err
+		}
+		repos, err = impl.chartRepoRepository.GetAll()
+		if err != nil {
+			impl.logger.Errorw("err in getting repo list", "err", err)
+			return nil, err
+		}
+	} else {
+		if impl.configuration.IsOCIRegistry {
 			ociRegistry, err = impl.dockerArtifactStoreRepository.FindOne(impl.configuration.ChartProviderId)
 			if err != nil {
 				impl.logger.Errorw("err in getting OCI Registries list", "err", err)
 				return nil, err
 			}
 			ociRegistries = []*sql.DockerArtifactStore{ociRegistry}
-		}
-		for _, registryObj := range ociRegistries {
-			if !util.IsValidRegistryChartConfiguration(registryObj) {
-				continue
-			}
-			impl.logger.Infow("syncing repo", "OCI Registry Id", registryObj.Id)
-			err := impl.syncOCIRepo(registryObj)
-			if err != nil {
-				impl.logger.Errorw("repo sync error", "OCIRegistry", registryObj)
-			}
-		}
-	} else {
-		if impl.configuration.ChartProviderId == "*" {
-			repos, err = impl.chartRepoRepository.GetAll()
-			if err != nil {
-				impl.logger.Errorw("err in getting repo list", "err", err)
-				return nil, err
-			}
 		} else {
 			chartRepoId, err = strconv.Atoi(impl.configuration.ChartProviderId)
 			if err != nil {
@@ -105,12 +92,22 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 			}
 			repos = []*sql.ChartRepo{repo}
 		}
-		for _, repository := range repos {
-			impl.logger.Infow("syncing repo", "name", repository.Name)
-			err := impl.syncRepo(repository)
-			if err != nil {
-				impl.logger.Errorw("repo sync error", "repo", repository)
-			}
+	}
+	for _, registryObj := range ociRegistries {
+		if !util.IsValidRegistryChartConfiguration(registryObj) {
+			continue
+		}
+		impl.logger.Infow("syncing repo", "OCI Registry Id", registryObj.Id)
+		err := impl.syncOCIRepo(registryObj)
+		if err != nil {
+			impl.logger.Errorw("repo sync error", "OCIRegistry", registryObj)
+		}
+	}
+	for _, repository := range repos {
+		impl.logger.Infow("syncing repo", "name", repository.Name)
+		err := impl.syncRepo(repository)
+		if err != nil {
+			impl.logger.Errorw("repo sync error", "repo", repository)
 		}
 	}
 	return nil, nil
