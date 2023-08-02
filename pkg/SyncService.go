@@ -463,6 +463,9 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 			impl.logger.Errorw("error in marking latest", "err", err)
 			return err
 		}
+		if application.Id == latestCreated.Id {
+			return nil
+		}
 		if err == nil {
 			application.Latest = false
 			latestFlagAppVersions = append(latestFlagAppVersions, application)
