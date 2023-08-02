@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/repo"
+	"k8s.io/utils/strings/slices"
 	"strconv"
 	"strings"
 	"time"
@@ -94,7 +95,9 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 		}
 	}
 	for _, registryObj := range ociRegistries {
+		// validation to avoid nil pointer
 		if !util.IsValidRegistryChartConfiguration(registryObj) {
+			impl.logger.Errorw("no valid configuration found for OCI registry", "OCI registry", registryObj.Id)
 			continue
 		}
 		impl.logger.Infow("syncing repo", "OCI Registry Id", registryObj.Id)
@@ -117,16 +120,30 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 	applications, err := impl.appStoreRepository.FindByStoreId(ociRepo.Id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app for repo", "OCI registry", ociRepo.Id, "err", err)
-	}
-	applicationId := make(map[string]int)
-	for _, application := range applications {
-		applicationId[application.Name] = application.Id
-	}
-	// validation to avoid nil pointer
-	if !util.IsValidRegistryChartConfiguration(ociRepo) {
-		impl.logger.Errorw("no valid configuration found for OCI registry", "OCI registry", ociRepo.Id)
 		return nil
 	}
+	applicationId := make(map[string]int)
+	// Already validated for nil pointer
+	chartRepoRepositoryList := strings.Split(ociRepo.OCIRegistryConfig[0].RepositoryList, ",")
+	removedApplicationList := make([]*sql.AppStore, 0)
+	for _, application := range applications {
+		if !slices.Contains(chartRepoRepositoryList, application.Name) {
+			application.Active = false
+			application.UpdatedOn = time.Now()
+			removedApplicationList = append(removedApplicationList, application)
+		}
+		applicationId[application.Name] = application.Id
+	}
+
+	if len(removedApplicationList) > 0 {
+		impl.logger.Errorw("removing in charts from app store", "RemovedApplicationList", removedApplicationList, "err", err)
+		err = impl.appStoreRepository.Update(removedApplicationList)
+		if err != nil {
+			impl.logger.Errorw("error in updating app store", "err", err)
+			return nil
+		}
+	}
+
 	client, err := registry.NewClient()
 	if err != nil {
 		return nil
@@ -144,7 +161,6 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 			return nil
 		}
 	}
-	chartRepoRepositoryList := strings.Split(ociRepo.OCIRegistryConfig[0].RepositoryList, ",")
 	for _, chartName := range chartRepoRepositoryList {
 		ref := fmt.Sprintf("%s/%s", strings.TrimSpace(ociRepo.RegistryURL), strings.TrimSpace(chartName))
 		chartVersions, err := impl.helmRepoManager.FetchOCIChartTagsList(client, ref)
@@ -154,17 +170,30 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 		}
 		id, ok := applicationId[chartName]
 		if !ok {
-			//new app create AppStore
-			app := &sql.AppStore{
-				Name:                  chartName,
-				DockerArtifactStoreId: ociRepo.Id,
-				CreatedOn:             time.Now(),
-				UpdatedOn:             time.Now(),
-				Active:                true,
-			}
-			err = impl.appStoreRepository.Save(app)
-			if err != nil {
-				impl.logger.Errorw("error in saving app", "app", app, "err", err)
+			app, fetchErr := impl.appStoreRepository.FindInactiveOneByName(chartName)
+			if fetchErr == nil {
+				app.Active = true
+				app.UpdatedOn = time.Now()
+				err = impl.appStoreRepository.Update([]*sql.AppStore{app})
+				if err != nil {
+					impl.logger.Errorw("error in updating app store", "err", err)
+					continue
+				}
+			} else if fetchErr == pg.ErrNoRows {
+				//create new app in AppStore
+				app = &sql.AppStore{
+					Name:                  chartName,
+					DockerArtifactStoreId: ociRepo.Id,
+					CreatedOn:             time.Now(),
+					UpdatedOn:             time.Now(),
+					Active:                true,
+				}
+				err = impl.appStoreRepository.Save(app)
+				if err != nil {
+					impl.logger.Errorw("error in saving app", "app", app, "err", err)
+					continue
+				}
+			} else {
 				continue
 			}
 			applicationId[chartName] = app.Id
