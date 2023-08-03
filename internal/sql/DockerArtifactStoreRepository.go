@@ -79,7 +79,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAllChartProviders() ([]*Docker
 		Where("active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE and " +
-				"repository_type='CHART' and " +
+				"is_chart_pull_active IS TRUE and repository_type='CHART' and " +
 				"(repository_action='PULL' or repository_action='PULL/PUSH')"), nil
 		}).
 		Select()
@@ -94,7 +94,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerAr
 		Where("active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE and " +
-				"repository_type='CHART' and " +
+				"is_chart_pull_active IS TRUE and repository_type='CHART' and " +
 				"(repository_action='PULL' or repository_action='PULL/PUSH')"), nil
 		}).
 		Select()
