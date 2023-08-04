@@ -52,7 +52,7 @@ func (impl *AppStoreRepositoryImpl) FindByStoreId(storeId string) (appStores []*
 	return appStores, err
 }
 func (impl *AppStoreRepositoryImpl) FindInactiveOneByName(name string) (appStores *AppStore, err error) {
-	err = impl.dbConnection.Model(&appStores).
+	err = impl.dbConnection.Model(appStores).
 		Where("name =?", name).
 		Where("active =?", false).
 		Select()
