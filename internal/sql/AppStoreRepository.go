@@ -51,15 +51,16 @@ func (impl *AppStoreRepositoryImpl) FindByStoreId(storeId string) (appStores []*
 		Select()
 	return appStores, err
 }
-func (impl *AppStoreRepositoryImpl) FindInactiveOneByName(name string) (appStores *AppStore, err error) {
-	err = impl.dbConnection.Model(appStores).
+func (impl *AppStoreRepositoryImpl) FindInactiveOneByName(name string) (*AppStore, error) {
+	appStore := AppStore{}
+	err := impl.dbConnection.Model(&appStore).
 		Where("name =?", name).
 		Where("active =?", false).
 		Select()
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching inactive app for name", "ChartName", name, "err", err)
 	}
-	return appStores, err
+	return &appStore, err
 }
 
 func (impl *AppStoreRepositoryImpl) Save(appStore *AppStore) error {

@@ -101,8 +101,7 @@ func IsValidRegistryChartConfiguration(ociRegistry *sql.DockerArtifactStore) boo
 	if ociRegistry.OCIRegistryConfig == nil ||
 		len(ociRegistry.OCIRegistryConfig) != 1 ||
 		ociRegistry.OCIRegistryConfig[0].RepositoryType != sql.OCI_REGISRTY_REPO_TYPE_CHART ||
-		ociRegistry.OCIRegistryConfig[0].RepositoryAction == sql.STORAGE_ACTION_TYPE_PUSH ||
-		ociRegistry.OCIRegistryConfig[0].RepositoryList == "" {
+		ociRegistry.OCIRegistryConfig[0].RepositoryAction == sql.STORAGE_ACTION_TYPE_PUSH {
 		return false
 	}
 	return true
