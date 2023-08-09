@@ -170,7 +170,7 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 		}
 		id, ok := applicationId[chartName]
 		if !ok {
-			app, fetchErr := impl.appStoreRepository.FindInactiveOneByName(chartName)
+			app, fetchErr := impl.appStoreRepository.FindInactiveOneByName(ociRepo.Id, chartName)
 			if fetchErr == nil {
 				app.Active = true
 				app.UpdatedOn = time.Now()

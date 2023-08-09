@@ -8,7 +8,7 @@ import (
 
 type AppStoreRepository interface {
 	FindByStoreId(storeId string) (appStores []*AppStore, err error)
-	FindInactiveOneByName(name string) (appStore *AppStore, err error)
+	FindInactiveOneByName(storeId, name string) (appStore *AppStore, err error)
 	FindByRepoId(repoId int) (appStores []*AppStore, err error)
 	Save(appStore *AppStore) error
 	Update(appStore []*AppStore) error
@@ -51,9 +51,10 @@ func (impl *AppStoreRepositoryImpl) FindByStoreId(storeId string) (appStores []*
 		Select()
 	return appStores, err
 }
-func (impl *AppStoreRepositoryImpl) FindInactiveOneByName(name string) (*AppStore, error) {
+func (impl *AppStoreRepositoryImpl) FindInactiveOneByName(storeId, name string) (*AppStore, error) {
 	appStore := AppStore{}
 	err := impl.dbConnection.Model(&appStore).
+		Where("docker_artifact_store_id =?", storeId).
 		Where("name =?", name).
 		Where("active =?", false).
 		Select()
