@@ -65,12 +65,10 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 		ociRegistries, err = impl.dockerArtifactStoreRepository.FindAllChartProviders()
 		if err != nil {
 			impl.logger.Errorw("err in getting OCI Registries list", "err", err)
-			return nil, err
 		}
 		repos, err = impl.chartRepoRepository.GetAll()
 		if err != nil {
 			impl.logger.Errorw("err in getting repo list", "err", err)
-			return nil, err
 		}
 	} else {
 		if impl.configuration.IsOCIRegistry {
