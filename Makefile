@@ -22,7 +22,7 @@ dependency:
 	go mod tidy
 
 clean:
-	rm -f chart-sync
+	rm -rf chart-sync
 
 run: build
 	./chart-sync
