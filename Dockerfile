@@ -1,17 +1,21 @@
-FROM golang:1.16.2-alpine AS build-env
+FROM golang:1.20 AS build-env
 
-RUN apk add --no-cache git gcc musl-dev
-RUN apk add --update make
-RUN go get github.com/google/wire/cmd/wire
+RUN apt update
+RUN apt install git gcc musl-dev make -y
+RUN go install github.com/google/wire/cmd/wire@latest
+
 WORKDIR /go/src/github.com/devtron-labs/chart-sync
 ADD . /go/src/github.com/devtron-labs/chart-sync
-RUN GO111MODULE=on GOOS=linux make
+RUN GOOS=linux make
 
-FROM alpine:3.9
-RUN apk add --no-cache ca-certificates
+FROM ubuntu
+RUN apt update
+RUN apt install ca-certificates -y
+RUN apt clean autoclean
+RUN apt autoremove -y && rm -rf /var/lib/apt/lists/*
 COPY --from=build-env  /go/src/github.com/devtron-labs/chart-sync/chart-sync .
 
-RUN adduser -D devtron
+RUN useradd -ms /bin/bash devtron
 RUN chown -R devtron:devtron ./chart-sync
 USER devtron
 
