@@ -114,6 +114,15 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 	return nil, nil
 }
 
+func extractchartRepoRepositoryList(repositoryList string) []string {
+	chartNameList := make([]string, 0)
+	chartRepoRepositoryList := strings.Split(repositoryList, ",")
+	for _, chartName := range chartRepoRepositoryList {
+		chartNameList = append(chartNameList, strings.TrimSpace(chartName))
+	}
+	return chartNameList
+}
+
 func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error {
 	applications, err := impl.appStoreRepository.FindByStoreId(ociRepo.Id)
 	if err != nil {
@@ -122,7 +131,7 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 	}
 	applicationId := make(map[string]int)
 	// Already validated for nil pointer
-	chartRepoRepositoryList := strings.Split(ociRepo.OCIRegistryConfig[0].RepositoryList, ",")
+	chartRepoRepositoryList := extractchartRepoRepositoryList(ociRepo.OCIRegistryConfig[0].RepositoryList)
 	removedApplicationList := make([]*sql.AppStore, 0)
 	for _, application := range applications {
 		if !slices.Contains(chartRepoRepositoryList, application.Name) {
@@ -160,7 +169,7 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 		}
 	}
 	for _, chartName := range chartRepoRepositoryList {
-		ref := fmt.Sprintf("%s/%s", strings.TrimSpace(ociRepo.RegistryURL), strings.TrimSpace(chartName))
+		ref := fmt.Sprintf("%s/%s", strings.TrimSpace(ociRepo.RegistryURL), chartName)
 		chartVersions, err := impl.helmRepoManager.FetchOCIChartTagsList(client, ref)
 		if err != nil {
 			impl.logger.Errorw("error in fetching OCI repository tags", "repository url", ref, "err", err)
