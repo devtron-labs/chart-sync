@@ -114,7 +114,7 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 	return nil, nil
 }
 
-func extractchartRepoRepositoryList(repositoryList string) []string {
+func extractChartRepoRepositoryList(repositoryList string) []string {
 	chartNameList := make([]string, 0)
 	chartRepoRepositoryList := strings.Split(repositoryList, ",")
 	for _, chartName := range chartRepoRepositoryList {
@@ -131,7 +131,7 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 	}
 	applicationId := make(map[string]int)
 	// Already validated for nil pointer
-	chartRepoRepositoryList := extractchartRepoRepositoryList(ociRepo.OCIRegistryConfig[0].RepositoryList)
+	chartRepoRepositoryList := extractChartRepoRepositoryList(ociRepo.OCIRegistryConfig[0].RepositoryList)
 	removedApplicationList := make([]*sql.AppStore, 0)
 	for _, application := range applications {
 		if !slices.Contains(chartRepoRepositoryList, application.Name) {
