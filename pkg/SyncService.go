@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/repo"
-	"k8s.io/utils/strings/slices"
 	"strconv"
 	"strings"
 	"time"
@@ -124,50 +123,51 @@ func extractChartRepoRepositoryList(repositoryList string) []string {
 }
 
 func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error {
-	applications, err := impl.appStoreRepository.FindByStoreId(ociRepo.Id)
-	if err != nil {
-		impl.logger.Errorw("error in fetching app for repo", "OCI registry", ociRepo.Id, "err", err)
-		return nil
-	}
-	applicationId := make(map[string]int)
+	//applications, err := impl.appStoreRepository.FindByStoreId(ociRepo.Id)
+	//if err != nil {
+	//	impl.logger.Errorw("error in fetching app for repo", "OCI registry", ociRepo.Id, "err", err)
+	//	return nil
+	//}
+	//applicationId := make(map[string]int)
 	// Already validated for nil pointer
+
+	// list of repos to be added
+
+	//removedApplicationList := make([]*sql.AppStore, 0)
+	//for _, application := range applications {
+	//	if !slices.Contains(chartRepoRepositoryList, application.Name) {
+	//		application.Active = false
+	//		application.UpdatedOn = time.Now()
+	//		removedApplicationList = append(removedApplicationList, application)
+	//	}
+	//	applicationId[application.Name] = application.Id
+	//}
+	//// remove deleted app from db
+	//if len(removedApplicationList) > 0 {
+	//	impl.logger.Errorw("removing in charts from app store", "RemovedApplicationList", removedApplicationList, "err", err)
+	//	err = impl.appStoreRepository.Update(removedApplicationList)
+	//	if err != nil {
+	//		impl.logger.Errorw("error in updating app store", "err", err)
+	//		return nil
+	//	}
+	//}
+	//------
 	chartRepoRepositoryList := extractChartRepoRepositoryList(ociRepo.OCIRegistryConfig[0].RepositoryList)
-	removedApplicationList := make([]*sql.AppStore, 0)
-	for _, application := range applications {
-		if !slices.Contains(chartRepoRepositoryList, application.Name) {
-			application.Active = false
-			application.UpdatedOn = time.Now()
-			removedApplicationList = append(removedApplicationList, application)
-		}
-		applicationId[application.Name] = application.Id
-	}
 
-	if len(removedApplicationList) > 0 {
-		impl.logger.Errorw("removing in charts from app store", "RemovedApplicationList", removedApplicationList, "err", err)
-		err = impl.appStoreRepository.Update(removedApplicationList)
-		if err != nil {
-			impl.logger.Errorw("error in updating app store", "err", err)
-			return nil
-		}
-	}
-
-	client, err := registry.NewClient()
+	// marking all repos not present in request(chartRepoRepositoryList) for registry (ociRepo.Id) as inactive
+	err := impl.appStoreRepository.MarkReposInactive(ociRepo.Id, chartRepoRepositoryList)
 	if err != nil {
+		impl.logger.Errorw("error in updating app store", "err", err)
 		return nil
 	}
-	username, password := "", ""
-	if !ociRepo.OCIRegistryConfig[0].IsPublic {
-		username, password, err = impl.helmRepoManager.ExtractCredentialsForRegistry(ociRepo)
-		if err != nil {
-			impl.logger.Errorw("error extracting AWS credentials", "registry id", ociRepo.Id, "err", err)
-			return nil
-		}
-		err = impl.helmRepoManager.RegistryLogin(client, ociRepo, username, password)
-		if err != nil {
-			impl.logger.Errorw("error logging in to OCI registry", "registry id", ociRepo.Id, "err", err)
-			return nil
-		}
+
+	// get registry client for oci repo
+	client, err := impl.getOciRegistryClient(ociRepo)
+	if err != nil {
+		impl.logger.Errorw("error in getting registry client for oci repo", "err", err)
+		return err
 	}
+
 	for _, chartName := range chartRepoRepositoryList {
 		ref := fmt.Sprintf("%s/%s", strings.TrimSpace(ociRepo.RegistryURL), chartName)
 		chartVersions, err := impl.helmRepoManager.FetchOCIChartTagsList(client, ref)
@@ -175,46 +175,72 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 			impl.logger.Errorw("error in fetching OCI repository tags", "repository url", ref, "err", err)
 			continue
 		}
-		id, ok := applicationId[chartName]
-		if !ok {
-			app, fetchErr := impl.appStoreRepository.FindInactiveOneByName(ociRepo.Id, chartName)
-			if fetchErr == nil {
-				app.Active = true
-				app.UpdatedOn = time.Now()
-				err = impl.appStoreRepository.Update([]*sql.AppStore{app})
-				if err != nil {
-					impl.logger.Errorw("error in updating app store", "err", err)
-					continue
-				}
-			} else if fetchErr == pg.ErrNoRows {
-				//create new app in AppStore
-				app = &sql.AppStore{
-					Name:                  chartName,
-					DockerArtifactStoreId: ociRepo.Id,
-					CreatedOn:             time.Now(),
-					UpdatedOn:             time.Now(),
-					Active:                true,
-				}
-				err = impl.appStoreRepository.Save(app)
-				if err != nil {
-					impl.logger.Errorw("error in saving app", "app", app, "err", err)
-					continue
-				}
-			} else {
-				continue
-			}
-			applicationId[chartName] = app.Id
-			id = app.Id
+		app, err := impl.appStoreRepository.UpsertOciApp(ociRepo.Id, chartName)
+		if err != nil {
+			impl.logger.Errorw("error in inserting repo in app store", "err", err, "registry", ociRepo.Id, "chartName", chartName)
+			continue
 		}
+		//id, ok := applicationId[chartName]
+		//if !ok {
+		//app, fetchErr := impl.appStoreRepository.FindInactiveOneByName(ociRepo.Id, chartName)
+		//if fetchErr == nil {
+		//	app.Active = true
+		//	app.UpdatedOn = time.Now()
+		//	err = impl.appStoreRepository.Update([]*sql.AppStore{app})
+		//	if err != nil {
+		//		impl.logger.Errorw("error in updating app store", "err", err)
+		//		continue
+		//	}
+		//} else if fetchErr == pg.ErrNoRows {
+		//	//create new app in AppStore
+		//	app = &sql.AppStore{
+		//		Name:                  chartName,
+		//		DockerArtifactStoreId: ociRepo.Id,
+		//		CreatedOn:             time.Now(),
+		//		UpdatedOn:             time.Now(),
+		//		Active:                true,
+		//	}
+		//	err = impl.appStoreRepository.Save(app)// db unique constrint, upsert query
+		//	if err != nil {
+		//		impl.logger.Errorw("error in saving app", "app", app, "err", err)
+		//		continue
+		//	}
+		//} else {
+		//	continue
+		//}
+		//applicationId[chartName] = app.Id
+		//id := app.Id
+		//}
 		//update entries if any  id, chartVersions
 		impl.logger.Infow("handling all versions of chart", "registryName", ociRepo.Id, "chartName", chartName, "chartVersions", len(chartVersions))
-		err = impl.updateOCIRegistryChartVersions(client, id, chartVersions, ociRepo, chartName, username, password)
+		err = impl.updateOCIRegistryChartVersions(client, app.Id, chartVersions, ociRepo, chartName)
 		if err != nil {
-			impl.logger.Errorw("error in updating chart versions", "err", err, "appId", id)
+			impl.logger.Errorw("error in updating chart versions", "err", err, "appId", app.Id)
 			continue
 		}
 	}
 	return nil
+}
+
+func (impl *SyncServiceImpl) getOciRegistryClient(ociRepo *sql.DockerArtifactStore) (*registry.Client, error) {
+	client, err := registry.NewClient()
+	if err != nil {
+		return client, err
+	}
+	username, password := "", ""
+	if !ociRepo.OCIRegistryConfig[0].IsPublic {
+		username, password, err = impl.helmRepoManager.ExtractCredentialsForRegistry(ociRepo)
+		if err != nil {
+			impl.logger.Errorw("error extracting AWS credentials", "registry id", ociRepo.Id, "err", err)
+			return client, err
+		}
+		err = impl.helmRepoManager.RegistryLogin(client, ociRepo, username, password)
+		if err != nil {
+			impl.logger.Errorw("error logging in to OCI registry", "registry id", ociRepo.Id, "err", err)
+			return client, err
+		}
+	}
+	return client, nil
 }
 
 func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
@@ -336,10 +362,13 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		if len(appVersions) == impl.configuration.AppStoreAppVersionsSaveChunkSize {
 			// save into DB
 			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
-			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
+			isNewChartVersionFound, err := impl.appStoreApplicationVersionRepository.Save(&appVersions)
 			if err != nil {
 				impl.logger.Errorw("error in updating", "totalIn", len(*chartVersions), "totalOut", len(appVersions), "err", err)
 				return err
+			}
+			if !isAnyChartVersionFound {
+				isAnyChartVersionFound = isNewChartVersionFound
 			}
 			// reset the array
 			appVersions = nil
@@ -354,7 +383,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 	// if any version left to save
 	if len(appVersions) > 0 {
 		impl.logger.Infow("saving remaining chart versions into DB", "versions", len(appVersions))
-		err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
+		_, err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
 		if err != nil {
 			impl.logger.Errorw("error in updating", "totalIn", len(*chartVersions), "totalOut", len(appVersions), "err", err)
 			return err
@@ -386,26 +415,26 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 	return nil
 }
 
-func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Client, appId int, chartVersions []string, ociRepo *sql.DockerArtifactStore, chartName, username, password string) error {
+func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Client, appId int, chartVersions []string, ociRepo *sql.DockerArtifactStore, chartName string) error {
 	chartVersionsCount := len(chartVersions)
-	applicationVersions, err := impl.appStoreApplicationVersionRepository.FindVersionsByAppStoreId(appId)
-	if err != nil {
-		impl.logger.Errorw("error in getting application versions ", "err", err, "appId", appId)
-		return err
-	}
-	applicationVersionMaps := make(map[string]int)
+	//applicationVersions, err := impl.appStoreApplicationVersionRepository.FindVersionsByAppStoreId(appId)
+	//if err != nil {
+	//	impl.logger.Errorw("error in getting application versions ", "err", err, "appId", appId)
+	//	return err
+	//}
+	//applicationVersionMaps := make(map[string]int)
 
-	for _, applicationVersion := range applicationVersions {
-		applicationVersionMaps[applicationVersion.Version] = applicationVersion.Id
-	}
+	//for _, applicationVersion := range applicationVersions {
+	//	applicationVersionMaps[applicationVersion.Version] = applicationVersion.Id
+	//}
 	var appVersions []*sql.AppStoreApplicationVersion
 	var isAnyChartVersionFound bool
 	for _, chartVersion := range chartVersions {
-		if _, ok := applicationVersionMaps[chartVersion]; ok {
-			//already present
-			impl.logger.Warnw("ignoring chart version as this already exists", "appStoreId", appId, "chartVersion", chartVersion)
-			continue
-		}
+		//if _, ok := applicationVersionMaps[chartVersion]; ok {
+		//	//already present
+		//	impl.logger.Warnw("ignoring chart version as this already exists", "appStoreId", appId, "chartVersion", chartVersion)
+		//	continue
+		//}
 		chartVersionJson, err := json.Marshal(chartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in marshaling json", "err", err)
@@ -421,10 +450,6 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 		if err != nil {
 			impl.logger.Errorw("error in getting values yaml", "err", err)
 			continue
-		}
-
-		if !isAnyChartVersionFound {
-			isAnyChartVersionFound = true
 		}
 
 		application := &sql.AppStoreApplicationVersion{
@@ -459,10 +484,13 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 		if len(appVersions) == impl.configuration.AppStoreAppVersionsSaveChunkSize {
 			// save into DB
 			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
-			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
+			isNewChartVersionFound, err := impl.appStoreApplicationVersionRepository.Save(&appVersions)
 			if err != nil {
 				impl.logger.Errorw("error in updating", "totalIn", chartVersionsCount, "totalOut", len(appVersions), "err", err)
 				return err
+			}
+			if !isAnyChartVersionFound {
+				isAnyChartVersionFound = isNewChartVersionFound
 			}
 			// reset the array
 			appVersions = nil
@@ -477,7 +505,7 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 	// if any version left to save
 	if len(appVersions) > 0 {
 		impl.logger.Infow("saving remaining chart versions into DB", "versions", len(appVersions))
-		err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
+		_, err := impl.appStoreApplicationVersionRepository.Save(&appVersions) // db unique constraint, upsert
 		if err != nil {
 			impl.logger.Errorw("error in updating", "totalIn", chartVersionsCount, "totalOut", len(appVersions), "err", err)
 			return err
