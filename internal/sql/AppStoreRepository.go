@@ -12,7 +12,7 @@ type AppStoreRepository interface {
 	FindByRepoId(repoId int) (appStores []*AppStore, err error)
 	Save(appStore *AppStore) error
 	Update(appStore []*AppStore) error
-	UpsertOciApp(storeId, name string) (AppStore, error)
+	InsertOciApp(appStores []*AppStore, ociRepoId string, chartNames []string) ([]*AppStore, error)
 	MarkReposInactive(dockerArtifactStoreId string, activeRepoNames []string) error
 }
 
@@ -83,22 +83,20 @@ func (impl *AppStoreRepositoryImpl) Update(appStores []*AppStore) error {
 	return err
 }
 
-func (impl *AppStoreRepositoryImpl) UpsertOciApp(storeId, name string) (AppStore, error) {
-	appStore := AppStore{}
-	query := "WITH upsert AS (UPDATE app_store SET active=true where docker_artifact_store_id=? and name=? returning * ) INSERT INTO app_store (name, chart_repo_id,active,created_on,updated_on,docker_artifact_store_id) SELECT ?, NULL, true, now(), now(),? WHERE NOT EXISTS (SELECT * FROM upsert) returning *"
-	res, err := impl.dbConnection.Query(&appStore, query, storeId, name, name, storeId)
+func (impl *AppStoreRepositoryImpl) InsertOciApp(appStores []*AppStore, ociRepoId string, chartNames []string) ([]*AppStore, error) {
+
+	_, err := impl.dbConnection.Model(&appStores).OnConflict("DO NOTHING").Insert()
 	if err != nil {
-		impl.Logger.Errorw("error in upsert operation of oci repo", "storeId", storeId, "name", name, res)
-		return appStore, err
+		impl.Logger.Errorw("error in insert operation of oci repo")
+		return appStores, err
 	}
-	if appStore.Id == 0 {
-		res, err = impl.dbConnection.Query(&appStore, "select * from app_store where docker_artifact_store_id=? and name=? ", storeId, name)
-		if err != nil {
-			impl.Logger.Errorw("error in fetching app store from db", "err", err)
-			return appStore, err
-		}
+	_, err = impl.dbConnection.Query(&appStores, "select * from app_store where docker_artifact_store_id=? and name in (?) ", ociRepoId, pg.In(chartNames))
+	if err != nil {
+		impl.Logger.Errorw("error in fetching app store from db", "err", err)
+		return appStores, err
 	}
-	return appStore, nil
+
+	return appStores, nil
 }
 
 func (impl *AppStoreRepositoryImpl) MarkReposInactive(dockerArtifactStoreId string, activeRepoNames []string) error {

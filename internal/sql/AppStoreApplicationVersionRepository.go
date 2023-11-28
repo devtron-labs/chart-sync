@@ -60,16 +60,18 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindVersionsByAppStoreId(ap
 }
 
 func (impl AppStoreApplicationVersionRepositoryImpl) Save(versions *[]*AppStoreApplicationVersion) (isNewChartVersionFound bool, err error) {
-	for _, version := range *versions {
-		query := "WITH upsert AS (UPDATE app_store_application_version SET latest=false where app_store_id=? and version=? returning * ) INSERT INTO app_store_application_version (version, description, app_version, digest, home,deprecated, name,values_yaml,chart_yaml,latest,app_store_id,created_on,updated_on,created_by,updated_by, raw_values,readme,values_schema_json,notes) SELECT ?,?,?,?,?,?,?,?,?,?,?,now(),now(),1,1,?,?,?,? WHERE NOT EXISTS (SELECT * FROM upsert)"
-		res, err := impl.dbConnection.Exec(query, version.AppStoreId, version.Version, version.Version, version.Description, version.AppVersion, version.Digest, version.Home, version.Deprecated, version.Name, version.ValuesYaml, version.ChartYaml, false, version.AppStoreId, version.RawValues, version.Readme, version.ValuesSchemaJson, version.Notes)
-		if err != nil {
-			impl.Logger.Errorw("error in creating app store application version for app store", "err", err, "app_store_id", version.AppStoreId, res)
-			return 0, err
-		}
-		if res.RowsAffected() > 0 {
-			isNewChartVersionFound = true
-		}
+	//for _, version := range *versions {
+	//query := "WITH upsert AS (UPDATE app_store_application_version SET latest=false where app_store_id=? and version=? returning * ) INSERT INTO app_store_application_version (version, description, app_version, digest, home,deprecated, name,values_yaml,chart_yaml,latest,app_store_id,created_on,updated_on,created_by,updated_by, raw_values,readme,values_schema_json,notes) SELECT ?,?,?,?,?,?,?,?,?,?,?,now(),now(),1,1,?,?,?,? WHERE NOT EXISTS (SELECT * FROM upsert)"
+	//res, err := impl.dbConnection.Exec(query, version.AppStoreId, version.Version, version.Version, version.Description, version.AppVersion, version.Digest, version.Home, version.Deprecated, version.Name, version.ValuesYaml, version.ChartYaml, false, version.AppStoreId, version.RawValues, version.Readme, version.ValuesSchemaJson, version.Notes)
+
+	//}
+	res, err := impl.dbConnection.Model(versions).Insert()
+	if err != nil {
+		impl.Logger.Errorw("error in creating app store application version for app store", "err", err)
+		return false, err
+	}
+	if res.RowsAffected() > 0 {
+		isNewChartVersionFound = true
 	}
 	return isNewChartVersionFound, nil
 }
