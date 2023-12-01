@@ -90,7 +90,7 @@ func (impl *AppStoreRepositoryImpl) InsertOciApp(appStores []*AppStore, ociRepoI
 		impl.Logger.Errorw("error in insert operation of oci repo")
 		return appStores, err
 	}
-	_, err = impl.dbConnection.Query(&appStores, "select * from app_store where docker_artifact_store_id=? and name in (?) ", ociRepoId, pg.In(chartNames))
+	_, err = impl.dbConnection.Query(&appStores, "select * from app_store where docker_artifact_store_id=? and name in (?) and active=true", ociRepoId, pg.In(chartNames))
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app store from db", "err", err)
 		return appStores, err

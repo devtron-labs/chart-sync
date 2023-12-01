@@ -10,7 +10,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/registry"
-	"helm.sh/helm/v3/pkg/repo"
+	helmrepo "helm.sh/helm/v3/pkg/repo"
 	"strconv"
 	"strings"
 	"time"
@@ -132,24 +132,8 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 		impl.logger.Errorw("error in updating app store", "err", err)
 		return nil
 	}
-
-	// get registry client for oci repo
-	client, err := impl.getOciRegistryClient(ociRepo)
-	if err != nil {
-		impl.logger.Errorw("error in getting registry client for oci repo", "err", err)
-		return err
-	}
-
 	var appStoreRepos []*sql.AppStore
-	chartNameToVersionsMapping := make(map[string][]string)
 	for _, chartName := range chartRepoRepositoryList {
-		ref := fmt.Sprintf("%s/%s", strings.TrimSpace(ociRepo.RegistryURL), chartName)
-		chartVersions, err := impl.helmRepoManager.FetchOCIChartTagsList(client, ref)
-		if err != nil {
-			impl.logger.Errorw("error in fetching OCI repository tags", "repository url", ref, "err", err)
-			continue
-		}
-		chartNameToVersionsMapping[chartName] = chartVersions
 		app := &sql.AppStore{
 			Name:                  chartName,
 			DockerArtifactStoreId: ociRepo.Id,
@@ -164,15 +148,26 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 		impl.logger.Errorw("error in inserting repos in app store", "err", err)
 		return err
 	}
+	// get registry client for oci repo
+	client, err := impl.getOciRegistryClient(ociRepo)
+	if err != nil {
+		impl.logger.Errorw("error in getting registry client for oci repo", "err", err)
+		return err
+	}
 	for _, appStore := range appStoreRepos {
-		impl.logger.Infow("handling all versions of chart", "registryName", ociRepo.Id, "chartName", appStore.Name, "chartVersions", len(chartNameToVersionsMapping[appStore.Name]))
-		err = impl.updateOCIRegistryChartVersions(client, appStore.Id, chartNameToVersionsMapping[appStore.Name], ociRepo, appStore.Name)
+		ref := fmt.Sprintf("%s/%s", strings.TrimSpace(ociRepo.RegistryURL), appStore.Name)
+		chartVersions, err := impl.helmRepoManager.FetchOCIChartTagsList(client, ref)
+		if err != nil {
+			impl.logger.Errorw("error in fetching OCI repository tags", "repository url", ref, "err", err)
+			continue
+		}
+		impl.logger.Infow("handling all versions of chart", "registryName", ociRepo.Id, "chartName", appStore.Name, "chartVersions", chartVersions)
+		err = impl.updateOCIRegistryChartVersions(client, appStore.Id, chartVersions, ociRepo, appStore.Name)
 		if err != nil {
 			impl.logger.Errorw("error in updating chart versions", "err", err, "appId", appStore.Id)
 			continue
 		}
 	}
-
 	return nil
 }
 
@@ -212,6 +207,7 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 	for _, application := range applications {
 		applicationId[application.Name] = application.Id
 	}
+
 	for name, chartVersions := range indexFile.Entries {
 		id, ok := applicationId[name]
 		if !ok {
@@ -242,7 +238,7 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 	return nil
 }
 
-func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.ChartVersions, repoUrl string, username string, password string, allowInsecureConnection bool) error {
+func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *helmrepo.ChartVersions, repoUrl string, username string, password string, allowInsecureConnection bool) error {
 	applicationVersions, err := impl.appStoreApplicationVersionRepository.FindVersionsByAppStoreId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting application versions ", "err", err, "appId", appId)
@@ -440,15 +436,11 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 		if len(appVersions) == impl.configuration.AppStoreAppVersionsSaveChunkSize {
 			// save into DB
 			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
-			isNewChartVersionFound, err := impl.appStoreApplicationVersionRepository.Save(&appVersions)
+			_, err := impl.appStoreApplicationVersionRepository.Save(&appVersions)
 			if err != nil {
 				impl.logger.Errorw("error in updating", "totalIn", chartVersionsCount, "totalOut", len(appVersions), "err", err)
 				return err
 			}
-			if !isAnyChartVersionFound {
-				isAnyChartVersionFound = isNewChartVersionFound
-			}
-
 			// reset the array
 			appVersions = nil
 		}
