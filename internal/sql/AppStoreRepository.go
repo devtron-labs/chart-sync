@@ -10,10 +10,11 @@ type AppStoreRepository interface {
 	FindByStoreId(storeId string) (appStores []*AppStore, err error)
 	FindInactiveOneByName(storeId, name string) (appStore *AppStore, err error)
 	FindByRepoId(repoId int) (appStores []*AppStore, err error)
-	Save(appStore *AppStore) error
+	Save(appStores []*AppStore) error
 	Update(appStore []*AppStore) error
-	InsertOciApp(appStores []*AppStore, ociRepoId string, chartNames []string) ([]*AppStore, error)
 	MarkReposInactive(dockerArtifactStoreId string, activeRepoNames []string) error
+	GetAppStoresForChartRepo(chartRepoId int, chartNames []string) ([]*AppStore, error)
+	GetAppStoresForOCIRepo(ociRepoID string, chartNames []string) ([]*AppStore, error)
 }
 
 type AppStoreRepositoryImpl struct {
@@ -66,8 +67,13 @@ func (impl *AppStoreRepositoryImpl) FindInactiveOneByName(storeId, name string) 
 	return &appStore, err
 }
 
-func (impl *AppStoreRepositoryImpl) Save(appStore *AppStore) error {
-	return impl.dbConnection.Insert(appStore)
+func (impl *AppStoreRepositoryImpl) Save(appStores []*AppStore) error {
+	_, err := impl.dbConnection.Model(&appStores).OnConflict("DO NOTHING").Insert()
+	if err != nil {
+		impl.Logger.Errorw("error in insert operation of oci repo")
+		return err
+	}
+	return nil
 }
 
 func (impl *AppStoreRepositoryImpl) Update(appStores []*AppStore) error {
@@ -83,22 +89,6 @@ func (impl *AppStoreRepositoryImpl) Update(appStores []*AppStore) error {
 	return err
 }
 
-func (impl *AppStoreRepositoryImpl) InsertOciApp(appStores []*AppStore, ociRepoId string, chartNames []string) ([]*AppStore, error) {
-
-	_, err := impl.dbConnection.Model(&appStores).OnConflict("DO NOTHING").Insert()
-	if err != nil {
-		impl.Logger.Errorw("error in insert operation of oci repo")
-		return appStores, err
-	}
-	_, err = impl.dbConnection.Query(&appStores, "select * from app_store where docker_artifact_store_id=? and name in (?) and active=true", ociRepoId, pg.In(chartNames))
-	if err != nil {
-		impl.Logger.Errorw("error in fetching app store from db", "err", err)
-		return appStores, err
-	}
-
-	return appStores, nil
-}
-
 func (impl *AppStoreRepositoryImpl) MarkReposInactive(dockerArtifactStoreId string, activeRepoNames []string) error {
 	query := "update app_store set active=false where ( docker_artifact_store_id = ? and name not in (?))"
 	_, err := impl.dbConnection.Exec(query, dockerArtifactStoreId, pg.In(activeRepoNames))
@@ -107,4 +97,26 @@ func (impl *AppStoreRepositoryImpl) MarkReposInactive(dockerArtifactStoreId stri
 		return err
 	}
 	return nil
+}
+
+func (impl *AppStoreRepositoryImpl) GetAppStoresForChartRepo(chartRepoId int, chartNames []string) ([]*AppStore, error) {
+	var appStores []*AppStore
+	ChartRepoQuery := "select * from app_store where chart_repo_id=? and name in (?) and active=true"
+	_, err := impl.dbConnection.Query(&appStores, ChartRepoQuery, chartRepoId, pg.In(chartNames))
+	if err != nil {
+		impl.Logger.Errorw("error in fetching app store from db", "err", err)
+		return appStores, err
+	}
+	return appStores, nil
+}
+
+func (impl *AppStoreRepositoryImpl) GetAppStoresForOCIRepo(ociRepoID string, chartNames []string) ([]*AppStore, error) {
+	var appStores []*AppStore
+	ChartRepoQuery := "select * from app_store where docker_artifact_store_id=? and name in (?) and active=true"
+	_, err := impl.dbConnection.Query(&appStores, ChartRepoQuery, ociRepoID, pg.In(chartNames))
+	if err != nil {
+		impl.Logger.Errorw("error in fetching app store from db", "err", err)
+		return appStores, err
+	}
+	return appStores, nil
 }

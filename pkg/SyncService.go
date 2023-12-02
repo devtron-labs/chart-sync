@@ -105,7 +105,7 @@ func (impl *SyncServiceImpl) Sync() (interface{}, error) {
 	}
 	for _, repository := range repos {
 		impl.logger.Infow("syncing repo", "name", repository.Name)
-		err := impl.syncRepo(repository)
+		err := impl.syncChartRepo(repository)
 		if err != nil {
 			impl.logger.Errorw("repo sync error", "repo", repository)
 		}
@@ -133,6 +133,7 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 		return nil
 	}
 	var appStoreRepos []*sql.AppStore
+	var chartNames []string
 	for _, chartName := range chartRepoRepositoryList {
 		app := &sql.AppStore{
 			Name:                  chartName,
@@ -142,10 +143,16 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 			Active:                true,
 		}
 		appStoreRepos = append(appStoreRepos, app)
+		chartNames = append(chartNames, chartName)
 	}
-	appStoreRepos, err = impl.appStoreRepository.InsertOciApp(appStoreRepos, ociRepo.Id, chartRepoRepositoryList)
+	err = impl.appStoreRepository.Save(appStoreRepos)
 	if err != nil {
 		impl.logger.Errorw("error in inserting repos in app store", "err", err)
+		return err
+	}
+	appStoreRepos, err = impl.appStoreRepository.GetAppStoresForOCIRepo(ociRepo.Id, chartNames)
+	if err != nil {
+		impl.logger.Errorw("error in fetching repos in app store", "err", err)
 		return err
 	}
 	// get registry client for oci repo
@@ -192,49 +199,57 @@ func (impl *SyncServiceImpl) getOciRegistryClient(ociRepo *sql.DockerArtifactSto
 	return client, nil
 }
 
-func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
+func (impl *SyncServiceImpl) syncChartRepo(repo *sql.ChartRepo) error {
 	indexFile, err := impl.helmRepoManager.LoadIndexFile(repo)
 	if err != nil {
 		impl.logger.Errorw("error in loading index file", "repo", repo.Name, "err", err)
 		return err
 	}
 	indexFile.SortEntries()
-	applications, err := impl.appStoreRepository.FindByRepoId(repo.Id)
-	if err != nil {
-		impl.logger.Errorw("error in fetching app for repo", "repo", repo.Id, "err", err)
+
+	var appStores []*sql.AppStore
+	IndexFileEntries := indexFile.Entries
+
+	var chartNames []string
+	for name, _ := range IndexFileEntries {
+		//new app create AppStore
+		app := &sql.AppStore{
+			Name:        name,
+			ChartRepoId: repo.Id,
+			CreatedOn:   time.Now(),
+			UpdatedOn:   time.Now(),
+			Active:      true,
+		}
+		appStores = append(appStores, app)
+		chartNames = append(chartNames, name)
+		//update entries if any  id, chartVersions
 	}
-	applicationId := make(map[string]int)
-	for _, application := range applications {
-		applicationId[application.Name] = application.Id
+	err = impl.appStoreRepository.Save(appStores)
+	if err != nil {
+		impl.logger.Errorw("error in saving apps", "err", err)
+		return err
 	}
 
-	for name, chartVersions := range indexFile.Entries {
-		id, ok := applicationId[name]
-		if !ok {
-			//new app create AppStore
-			app := &sql.AppStore{
-				Name:        name,
-				ChartRepoId: repo.Id,
-				CreatedOn:   time.Now(),
-				UpdatedOn:   time.Now(),
-				Active:      true,
-			}
-			err = impl.appStoreRepository.Save(app)
-			if err != nil {
-				impl.logger.Errorw("error in saving app", "app", app, "err", err)
-				continue
-			}
-			applicationId[name] = app.Id
-			id = app.Id
-		}
-		//update entries if any  id, chartVersions
+	appStores, err = impl.appStoreRepository.GetAppStoresForChartRepo(repo.Id, chartNames)
+	if err != nil {
+		impl.logger.Errorw("error in fetching repos in app store", "err", err)
+		return err
+	}
+
+	appStoreMap := make(map[string]int)
+	for _, app := range appStores {
+		appStoreMap[app.Name] = app.Id
+	}
+
+	for name, chartVersions := range IndexFileEntries {
 		impl.logger.Infow("handling all versions of chart", "repoName", repo.Name, "chartName", name, "chartVersions", len(chartVersions))
-		err := impl.updateChartVersions(id, &chartVersions, repo.Url, repo.Username, repo.Password, repo.AllowInsecureConnection)
+		err := impl.updateChartVersions(appStoreMap[name], &chartVersions, repo.Url, repo.Username, repo.Password, repo.AllowInsecureConnection)
 		if err != nil {
-			impl.logger.Errorw("error in updating chart versions", "err", err, "appId", id)
+			impl.logger.Errorw("error in updating chart versions", "err", err, "appId", appStoreMap[name])
 			continue
 		}
 	}
+
 	return nil
 }
 
