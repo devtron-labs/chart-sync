@@ -13,6 +13,7 @@ type AppStoreRepository interface {
 	Save(appStores []*AppStore) error
 	Update(appStore []*AppStore) error
 	MarkReposInactive(dockerArtifactStoreId string, activeRepoNames []string) error
+	MarkReposActive(dockerArtifactStoreId string, activeRepoNames []string) error
 	GetAppStoresForChartRepo(chartRepoId int, chartNames []string) ([]*AppStore, error)
 	GetAppStoresForOCIRepo(ociRepoID string, chartNames []string) ([]*AppStore, error)
 }
@@ -92,6 +93,16 @@ func (impl *AppStoreRepositoryImpl) Update(appStores []*AppStore) error {
 func (impl *AppStoreRepositoryImpl) MarkReposInactive(dockerArtifactStoreId string, activeRepoNames []string) error {
 	query := "update app_store set active=false where ( docker_artifact_store_id = ? and name not in (?))"
 	_, err := impl.dbConnection.Exec(query, dockerArtifactStoreId, pg.In(activeRepoNames))
+	if err != nil {
+		impl.Logger.Errorw("error in marking apps as inactive", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *AppStoreRepositoryImpl) MarkReposActive(dockerArtifactStoreId string, activeRepoNames []string) error {
+	query := "update app_store set active=true where ( docker_artifact_store_id = ? and name in (?) and id in (select max(id) from app_store where docker_artifact_store_id =? and name in (?) group by name ,docker_artifact_store_id ))"
+	_, err := impl.dbConnection.Exec(query, dockerArtifactStoreId, pg.In(activeRepoNames), dockerArtifactStoreId, pg.In(activeRepoNames))
 	if err != nil {
 		impl.Logger.Errorw("error in marking apps as inactive", "err", err)
 		return err

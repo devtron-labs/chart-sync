@@ -132,6 +132,13 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 		impl.logger.Errorw("error in updating app store", "err", err)
 		return nil
 	}
+	// marking all repos active that are already present but there active status if false (added and removed from UI)
+	err = impl.appStoreRepository.MarkReposActive(ociRepo.Id, chartRepoRepositoryList)
+	if err != nil {
+		impl.logger.Errorw("error in updating app store", "err", err)
+		return nil
+	}
+
 	var appStoreRepos []*sql.AppStore
 	var chartNames []string
 	for _, chartName := range chartRepoRepositoryList {
