@@ -8,7 +8,7 @@ import (
 
 type AppStoreApplicationVersionRepository interface {
 	FindVersionsByAppStoreId(appStoreId int) ([]*AppStoreApplicationVersion, error)
-	Save(versions *[]*AppStoreApplicationVersion) error
+	Save(versions *[]*AppStoreApplicationVersion) (isNewChartVersionFound bool, err error)
 	FindLatestCreated(appStoreId int) (*AppStoreApplicationVersion, error)
 	FindOneByAppStoreIdAndVersion(appStoreId int, version string) (*AppStoreApplicationVersion, error)
 	FindLatest(appStoreId int) (*AppStoreApplicationVersion, error)
@@ -59,9 +59,16 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindVersionsByAppStoreId(ap
 
 }
 
-func (impl AppStoreApplicationVersionRepositoryImpl) Save(versions *[]*AppStoreApplicationVersion) error {
-	err := impl.dbConnection.Insert(versions)
-	return err
+func (impl AppStoreApplicationVersionRepositoryImpl) Save(versions *[]*AppStoreApplicationVersion) (isNewChartVersionFound bool, err error) {
+	res, err := impl.dbConnection.Model(versions).OnConflict("DO NOTHING").Insert()
+	if err != nil {
+		impl.Logger.Errorw("error in creating app store application version for app store", "err", err)
+		return false, err
+	}
+	if res.RowsAffected() > 0 {
+		isNewChartVersionFound = true
+	}
+	return isNewChartVersionFound, nil
 }
 
 func (impl AppStoreApplicationVersionRepositoryImpl) FindLatestCreated(appStoreId int) (*AppStoreApplicationVersion, error) {
