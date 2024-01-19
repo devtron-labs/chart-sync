@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/repo"
-	"k8s.io/utils/strings/slices"
+	"slices"
 	"strconv"
 	"strings"
 	"time"

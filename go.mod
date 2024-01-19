@@ -11,9 +11,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	go.uber.org/zap v1.19.0
 	helm.sh/helm/v3 v3.12.1
-	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5
 )
-
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
@@ -107,6 +105,7 @@ require (
 	k8s.io/client-go v0.27.2 // indirect
 	k8s.io/klog/v2 v2.90.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230501164219-8b0f38b5fd1f // indirect
+	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5 // indirect
 	mellium.im/sasl v0.3.1 // indirect
 	oras.land/oras-go v1.2.4 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
