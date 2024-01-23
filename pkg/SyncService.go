@@ -388,6 +388,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 
 func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Client, appId int, chartVersions []string, ociRepo *sql.DockerArtifactStore, chartName, username, password string) error {
 	chartVersionsCount := len(chartVersions)
+	var latestChartVersion string
 	applicationVersions, err := impl.appStoreApplicationVersionRepository.FindVersionsByAppStoreId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting application versions ", "err", err, "appId", appId)
@@ -458,6 +459,9 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 		// save 20 versions and reset the array (as memory would go increasing if save on one-go)
 		if len(appVersions) == impl.configuration.AppStoreAppVersionsSaveChunkSize {
 			// save into DB
+			if len(latestChartVersion) == 0 {
+				latestChartVersion = chartVersion
+			}
 			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
 			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
 			if err != nil {
@@ -486,7 +490,6 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 	// Update latest version for the chart
 	if chartVersionsCount > 0 {
 		var latestFlagAppVersions []*sql.AppStoreApplicationVersion
-		latestChartVersion := chartVersions[0]
 		latestCreated, err := impl.appStoreApplicationVersionRepository.FindOneByAppStoreIdAndVersion(appId, latestChartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in marking latest", "err", err)
