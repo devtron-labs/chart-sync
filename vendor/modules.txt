@@ -498,9 +498,10 @@ gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
-# helm.sh/helm/v3 v3.12.1 => github.com/devtron-labs/helm/v3 v3.12.0-dev.1.0.20240123104845-af914b6010e7
-## explicit; go 1.21
+# helm.sh/helm/v3 v3.12.1 => github.com/devtron-labs/helm/v3 v3.12.1-d2
+## explicit; go 1.19
 helm.sh/helm/v3/internal/fileutil
+helm.sh/helm/v3/internal/ignore
 helm.sh/helm/v3/internal/sympath
 helm.sh/helm/v3/internal/third_party/dep/fs
 helm.sh/helm/v3/internal/tlsutil
@@ -512,12 +513,10 @@ helm.sh/helm/v3/pkg/cli
 helm.sh/helm/v3/pkg/getter
 helm.sh/helm/v3/pkg/helmpath
 helm.sh/helm/v3/pkg/helmpath/xdg
-helm.sh/helm/v3/pkg/ignore
 helm.sh/helm/v3/pkg/plugin
 helm.sh/helm/v3/pkg/provenance
 helm.sh/helm/v3/pkg/registry
 helm.sh/helm/v3/pkg/repo
-helm.sh/helm/v3/pkg/time
 # k8s.io/api v0.29.0
 ## explicit; go 1.21
 k8s.io/api/admissionregistration/v1
