@@ -213,6 +213,45 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 			impl.logger.Errorw("error in updating chart versions", "err", err, "appId", id)
 			continue
 		}
+		err = impl.MarkChartVersionLatestForOCI(id, chartVersions)
+		if err != nil {
+			impl.logger.Errorw("error in updating chart version as latest", "err", err, "appId", id)
+			continue
+		}
+	}
+	return nil
+}
+
+func (impl *SyncServiceImpl) MarkChartVersionLatestForOCI(appId int, chartVersions []string) error {
+	// Update latest version for the chart
+	if len(chartVersions) == 0 {
+		return nil
+	}
+	latestChartVersion := chartVersions[0]
+	var latestFlagAppVersions []*sql.AppStoreApplicationVersion
+	latestCreated, err := impl.appStoreApplicationVersionRepository.FindOneByAppStoreIdAndVersion(appId, latestChartVersion)
+	if err != nil {
+		impl.logger.Errorw("error in marking latest", "err", err)
+		return err
+	}
+	latestCreated.Latest = true
+	latestFlagAppVersions = append(latestFlagAppVersions, latestCreated)
+	application, err := impl.appStoreApplicationVersionRepository.FindLatest(appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in marking latest", "err", err)
+		return err
+	}
+	if application.Id == latestCreated.Id {
+		return nil
+	}
+	if err == nil {
+		application.Latest = false
+		latestFlagAppVersions = append(latestFlagAppVersions, application)
+	}
+	err = impl.appStoreApplicationVersionRepository.Update(latestFlagAppVersions)
+	if err != nil {
+		impl.logger.Errorw("error in marking latest", "err", err)
+		return err
 	}
 	return nil
 }
@@ -258,6 +297,10 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 			impl.logger.Errorw("error in updating chart versions", "err", err, "appId", id)
 			continue
 		}
+		err = impl.MarkChartVersionLatestForChartRepo(id)
+		if err != nil {
+			impl.logger.Errorw("error in marking chart version as latest", "err", err, "appId", id)
+		}
 	}
 	return nil
 }
@@ -274,7 +317,6 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		applicationVersionMaps[applicationVersion.Version] = applicationVersion.Id
 	}
 	var appVersions []*sql.AppStoreApplicationVersion
-	var isAnyChartVersionFound bool
 	for _, chartVersion := range *chartVersions {
 		if _, ok := applicationVersionMaps[chartVersion.Version]; ok {
 			//already present
@@ -296,10 +338,6 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		if err != nil {
 			impl.logger.Errorw("error in getting values yaml", "err", err)
 			continue
-		}
-
-		if !isAnyChartVersionFound {
-			isAnyChartVersionFound = true
 		}
 
 		application := &sql.AppStoreApplicationVersion{
@@ -336,7 +374,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		if len(appVersions) == impl.configuration.AppStoreAppVersionsSaveChunkSize {
 			// save into DB
 			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
-			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
+			_, err := impl.appStoreApplicationVersionRepository.Save(&appVersions)
 			if err != nil {
 				impl.logger.Errorw("error in updating", "totalIn", len(*chartVersions), "totalOut", len(appVersions), "err", err)
 				return err
@@ -346,21 +384,20 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		}
 	}
 
-	if !isAnyChartVersionFound {
-		impl.logger.Infow("no change for ", "app", appId)
-		return nil
-	}
-
 	// if any version left to save
 	if len(appVersions) > 0 {
 		impl.logger.Infow("saving remaining chart versions into DB", "versions", len(appVersions))
-		err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
+		_, err := impl.appStoreApplicationVersionRepository.Save(&appVersions)
 		if err != nil {
 			impl.logger.Errorw("error in updating", "totalIn", len(*chartVersions), "totalOut", len(appVersions), "err", err)
 			return err
 		}
 	}
 
+	return nil
+}
+
+func (impl *SyncServiceImpl) MarkChartVersionLatestForChartRepo(appId int) error {
 	var latestFlagAppVersions []*sql.AppStoreApplicationVersion
 	latestCreated, err := impl.appStoreApplicationVersionRepository.FindLatestCreated(appId)
 	if err != nil {
@@ -374,7 +411,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		impl.logger.Errorw("error in marking latest", "err", err)
 		return err
 	}
-	if err == nil {
+	if err == nil && application.Id != latestCreated.Id {
 		application.Latest = false
 		latestFlagAppVersions = append(latestFlagAppVersions, application)
 	}
@@ -399,7 +436,7 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 		applicationVersionMaps[applicationVersion.Version] = applicationVersion.Id
 	}
 	var appVersions []*sql.AppStoreApplicationVersion
-	var isAnyChartVersionFound bool
+
 	for _, chartVersion := range chartVersions {
 		if _, ok := applicationVersionMaps[chartVersion]; ok {
 			//already present
@@ -421,10 +458,6 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 		if err != nil {
 			impl.logger.Errorw("error in getting values yaml", "err", err)
 			continue
-		}
-
-		if !isAnyChartVersionFound {
-			isAnyChartVersionFound = true
 		}
 
 		application := &sql.AppStoreApplicationVersion{
@@ -459,7 +492,7 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 		if len(appVersions) == impl.configuration.AppStoreAppVersionsSaveChunkSize {
 			// save into DB
 			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
-			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
+			_, err := impl.appStoreApplicationVersionRepository.Save(&appVersions)
 			if err != nil {
 				impl.logger.Errorw("error in updating", "totalIn", chartVersionsCount, "totalOut", len(appVersions), "err", err)
 				return err
@@ -469,48 +502,15 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 		}
 	}
 
-	if !isAnyChartVersionFound {
-		impl.logger.Infow("no change for ", "app", appId)
-		return nil
-	}
-
 	// if any version left to save
 	if len(appVersions) > 0 {
 		impl.logger.Infow("saving remaining chart versions into DB", "versions", len(appVersions))
-		err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
+		_, err := impl.appStoreApplicationVersionRepository.Save(&appVersions)
 		if err != nil {
 			impl.logger.Errorw("error in updating", "totalIn", chartVersionsCount, "totalOut", len(appVersions), "err", err)
 			return err
 		}
 	}
-	// Update latest version for the chart
-	if chartVersionsCount > 0 {
-		var latestFlagAppVersions []*sql.AppStoreApplicationVersion
-		latestChartVersion := chartVersions[0]
-		latestCreated, err := impl.appStoreApplicationVersionRepository.FindOneByAppStoreIdAndVersion(appId, latestChartVersion)
-		if err != nil {
-			impl.logger.Errorw("error in marking latest", "err", err)
-			return err
-		}
-		latestCreated.Latest = true
-		latestFlagAppVersions = append(latestFlagAppVersions, latestCreated)
-		application, err := impl.appStoreApplicationVersionRepository.FindLatest(appId)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in marking latest", "err", err)
-			return err
-		}
-		if application.Id == latestCreated.Id {
-			return nil
-		}
-		if err == nil {
-			application.Latest = false
-			latestFlagAppVersions = append(latestFlagAppVersions, application)
-		}
-		err = impl.appStoreApplicationVersionRepository.Update(latestFlagAppVersions)
-		if err != nil {
-			impl.logger.Errorw("error in marking latest", "err", err)
-			return err
-		}
-	}
+
 	return nil
 }

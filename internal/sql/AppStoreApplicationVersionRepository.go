@@ -2,13 +2,14 @@ package sql
 
 import (
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 	"time"
 )
 
 type AppStoreApplicationVersionRepository interface {
 	FindVersionsByAppStoreId(appStoreId int) ([]*AppStoreApplicationVersion, error)
-	Save(versions *[]*AppStoreApplicationVersion) error
+	Save(versions *[]*AppStoreApplicationVersion) (orm.Result, error)
 	FindLatestCreated(appStoreId int) (*AppStoreApplicationVersion, error)
 	FindOneByAppStoreIdAndVersion(appStoreId int, version string) (*AppStoreApplicationVersion, error)
 	FindLatest(appStoreId int) (*AppStoreApplicationVersion, error)
@@ -59,9 +60,9 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindVersionsByAppStoreId(ap
 
 }
 
-func (impl AppStoreApplicationVersionRepositoryImpl) Save(versions *[]*AppStoreApplicationVersion) error {
-	err := impl.dbConnection.Insert(versions)
-	return err
+func (impl AppStoreApplicationVersionRepositoryImpl) Save(versions *[]*AppStoreApplicationVersion) (orm.Result, error) {
+	res, err := impl.dbConnection.Model(versions).OnConflict("DO NOTHING").Insert()
+	return res, err
 }
 
 func (impl AppStoreApplicationVersionRepositoryImpl) FindLatestCreated(appStoreId int) (*AppStoreApplicationVersion, error) {
