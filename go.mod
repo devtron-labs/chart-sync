@@ -2,6 +2,8 @@ module github.com/devtron-labs/chart-sync
 
 go 1.20
 
+replace helm.sh/helm/v3 v3.12.1 => github.com/devtron-labs/helm/v3 v3.12.1-d2
+
 require (
 	github.com/aws/aws-sdk-go v1.44.306
 	github.com/caarlos0/env v3.5.0+incompatible
