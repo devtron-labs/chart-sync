@@ -302,6 +302,11 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			isAnyChartVersionFound = true
 		}
 
+		if chartVersion.Created.IsZero() {
+			// Created field is used in marking chart latest, so updating it with current time if it null
+			chartVersion.Created = time.Now()
+		}
+
 		application := &sql.AppStoreApplicationVersion{
 			Id:          0,
 			Version:     chartVersion.Version,
@@ -374,6 +379,9 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		impl.logger.Errorw("error in marking latest", "err", err)
 		return err
 	}
+	// There can be a case when created time of chart in index.yaml file is "0001-01-01T00:00:00Z" .
+	//In this case this latestCreated and application will be pointing to same chart and latest chart will be updated false from below code.
+	// Therefore, putting application.Id != latestCreated.Id so that latest chart is not updated with latest=falsegit r
 	if err == nil && application.Id != latestCreated.Id {
 		application.Latest = false
 		latestFlagAppVersions = append(latestFlagAppVersions, application)
