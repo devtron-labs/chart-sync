@@ -374,7 +374,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		impl.logger.Errorw("error in marking latest", "err", err)
 		return err
 	}
-	if err == nil {
+	if err == nil && application.Id != latestCreated.Id {
 		application.Latest = false
 		latestFlagAppVersions = append(latestFlagAppVersions, application)
 	}
