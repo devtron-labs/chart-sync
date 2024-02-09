@@ -60,7 +60,7 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindVersionsByAppStoreId(ap
 }
 
 func (impl AppStoreApplicationVersionRepositoryImpl) Save(versions *[]*AppStoreApplicationVersion) error {
-	err := impl.dbConnection.Insert(versions)
+	_, err := impl.dbConnection.Model(versions).OnConflict("DO NOTHING").Insert()
 	return err
 }
 
