@@ -4,7 +4,7 @@ import (
 	"github.com/go-pg/pg"
 )
 
-//---------------------------chart repository------------------
+// ---------------------------chart repository------------------
 
 type ChartRepo struct {
 	tableName               struct{} `sql:"chart_repo"`
@@ -42,11 +42,14 @@ func NewChartRepoRepositoryImpl(dbConnection *pg.DB) *ChartRepoRepositoryImpl {
 func (impl ChartRepoRepositoryImpl) Save(chartRepo *ChartRepo) error {
 	return impl.dbConnection.Insert(chartRepo)
 }
+
 func (impl ChartRepoRepositoryImpl) GetDefault() (*ChartRepo, error) {
 	repo := &ChartRepo{}
 	err := impl.dbConnection.Model(repo).
 		Where("is_default = ?", true).
-		Where("active = ?", true).Select()
+		Where("active = ?", true).
+		Where("deleted = ?", false).
+		Select()
 	return repo, err
 }
 
@@ -54,13 +57,17 @@ func (impl ChartRepoRepositoryImpl) FindById(id int) (*ChartRepo, error) {
 	repo := &ChartRepo{}
 	err := impl.dbConnection.Model(repo).
 		Where("id = ?", id).
-		Where("active = ?", true).Select()
+		Where("active = ?", true).
+		Where("deleted = ?", false).
+		Select()
 	return repo, err
 }
 
 func (impl *ChartRepoRepositoryImpl) GetAll() (repos []*ChartRepo, err error) {
 	err = impl.dbConnection.Model(&repos).
-		Where("external = ?", true).Where("active =?", true).
+		Where("external = ?", true).
+		Where("active =?", true).
+		Where("deleted = ?", false).
 		Select()
 	return repos, err
 }
