@@ -51,13 +51,13 @@ type AppStoreApplicationVersion struct {
 
 func (av AppStoreApplicationVersion) GetMetadata() map[string]string {
 	mp := make(map[string]string)
-	mp[av.Version] = av.Version
-	mp[av.AppVersion] = av.AppVersion
-	mp[av.Digest] = av.Digest
-	mp[av.Icon] = av.Icon
-	mp[av.Name] = av.Name
-	mp[av.Home] = av.Home
-	mp[av.Source] = av.Source
+	mp["version"] = av.Version
+	mp["appVersion"] = av.AppVersion
+	mp["digest"] = av.Digest
+	mp["icon"] = av.Icon
+	mp["name"] = av.Name
+	mp["home"] = av.Home
+	mp["source"] = av.Source
 	return mp
 }
 
