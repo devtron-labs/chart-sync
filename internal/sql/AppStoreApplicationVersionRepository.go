@@ -49,6 +49,18 @@ type AppStoreApplicationVersion struct {
 	AppStore         *AppStore
 }
 
+func (av AppStoreApplicationVersion) GetMetadata() map[string]string {
+	mp := make(map[string]string)
+	mp[av.Version] = av.Version
+	mp[av.AppVersion] = av.AppVersion
+	mp[av.Digest] = av.Digest
+	mp[av.Icon] = av.Icon
+	mp[av.Name] = av.Name
+	mp[av.Home] = av.Home
+	mp[av.Source] = av.Source
+	return mp
+}
+
 func (impl AppStoreApplicationVersionRepositoryImpl) FindVersionsByAppStoreId(appStoreId int) ([]*AppStoreApplicationVersion, error) {
 	var appStoreApplicationVersion []*AppStoreApplicationVersion
 	err := impl.dbConnection.Model(&appStoreApplicationVersion).

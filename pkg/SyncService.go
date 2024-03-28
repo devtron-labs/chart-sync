@@ -187,7 +187,7 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 					continue
 				}
 			} else if fetchErr == pg.ErrNoRows {
-				//create new app in AppStore
+				// create new app in AppStore
 				app = &sql.AppStore{
 					Name:                  chartName,
 					DockerArtifactStoreId: ociRepo.Id,
@@ -206,7 +206,7 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 			applicationId[chartName] = app.Id
 			id = app.Id
 		}
-		//update entries if any  id, chartVersions
+		// update entries if any  id, chartVersions
 		impl.logger.Infow("handling all versions of chart", "registryName", ociRepo.Id, "chartName", chartName, "chartVersions", len(chartVersions))
 		err = impl.updateOCIRegistryChartVersions(client, id, chartVersions, ociRepo, chartName, username, password)
 		if err != nil {
@@ -235,7 +235,7 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 	for name, chartVersions := range indexFile.Entries {
 		id, ok := applicationId[name]
 		if !ok {
-			//new app create AppStore
+			// new app create AppStore
 			app := &sql.AppStore{
 				Name:        name,
 				ChartRepoId: repo.Id,
@@ -251,7 +251,7 @@ func (impl *SyncServiceImpl) syncRepo(repo *sql.ChartRepo) error {
 			applicationId[name] = app.Id
 			id = app.Id
 		}
-		//update entries if any  id, chartVersions
+		// update entries if any  id, chartVersions
 		impl.logger.Infow("handling all versions of chart", "repoName", repo.Name, "chartName", name, "chartVersions", len(chartVersions))
 		err := impl.updateChartVersions(id, &chartVersions, repo.Url, repo.Username, repo.Password, repo.AllowInsecureConnection)
 		if err != nil {
@@ -277,7 +277,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 	var isAnyChartVersionFound bool
 	for _, chartVersion := range *chartVersions {
 		if _, ok := applicationVersionMaps[chartVersion.Version]; ok {
-			//already present
+			// already present
 			impl.logger.Warnw("ignoring chart version as this already exists", "appStoreId", appId, "chartVersion", chartVersion.Version)
 			break
 		}
@@ -317,7 +317,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			Digest:      chartVersion.Digest,
 			Icon:        chartVersion.Icon,
 			Name:        chartVersion.Name,
-			//Source:      chartVersion.Sources, //FIXME
+			// Source:      chartVersion.Sources, //FIXME
 			Home:       chartVersion.Home,
 			ValuesYaml: string(jsonByte),
 			ChartYaml:  string(chartVersionJson),
@@ -359,6 +359,9 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 	// if any version left to save
 	if len(appVersions) > 0 {
 		impl.logger.Infow("saving remaining chart versions into DB", "versions", len(appVersions))
+		for _, appVersion := range appVersions {
+			impl.logger.Infow("saving appVersion", "metadata", appVersion.GetMetadata())
+		}
 		err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
 		if err != nil {
 			impl.logger.Errorw("error in updating", "totalIn", len(*chartVersions), "totalOut", len(appVersions), "err", err)
@@ -380,11 +383,14 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		return err
 	}
 	// There can be a case when created time of chart in index.yaml file is "0001-01-01T00:00:00Z" .
-	//In this case this latestCreated and application will be pointing to same chart and latest chart will be updated false from below code.
+	// In this case this latestCreated and application will be pointing to same chart and latest chart will be updated false from below code.
 	// Therefore, putting application.Id != latestCreated.Id so that latest chart is not updated with latest=falsegit r
 	if err == nil && application.Id != latestCreated.Id {
 		application.Latest = false
 		latestFlagAppVersions = append(latestFlagAppVersions, application)
+	}
+	for _, appVersion := range latestFlagAppVersions {
+		impl.logger.Infow("updating appVersion", "metadata", appVersion.GetMetadata())
 	}
 	err = impl.appStoreApplicationVersionRepository.Update(latestFlagAppVersions)
 	if err != nil {
@@ -410,7 +416,7 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 	var isAnyChartVersionFound bool
 	for _, chartVersion := range chartVersions {
 		if _, ok := applicationVersionMaps[chartVersion]; ok {
-			//already present
+			// already present
 			impl.logger.Warnw("ignoring chart version as this already exists", "appStoreId", appId, "chartVersion", chartVersion)
 			continue
 		}
