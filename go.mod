@@ -4,7 +4,7 @@ go 1.21
 
 toolchain go1.21.1
 
-replace helm.sh/helm/v3 v3.12.1 => github.com/devtron-labs/helm/v3 v3.12.1-d2
+replace helm.sh/helm/v3 v3.14.3 => github.com/devtron-labs/helm/v3 v3.14.1-0.20240401080259-90238cf69e42
 
 require (
 	github.com/aws/aws-sdk-go v1.44.306
