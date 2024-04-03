@@ -473,6 +473,9 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 		if len(appVersions) == impl.configuration.AppStoreAppVersionsSaveChunkSize {
 			// save into DB
 			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
+			for _, version := range appVersions {
+				impl.logger.Infow("app versions meta data", "metadata", version.GetMetadata())
+			}
 			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
 			if err != nil {
 				impl.logger.Errorw("error in updating", "totalIn", chartVersionsCount, "totalOut", len(appVersions), "err", err)
@@ -491,6 +494,9 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 	// if any version left to save
 	if len(appVersions) > 0 {
 		impl.logger.Infow("saving remaining chart versions into DB", "versions", len(appVersions))
+		for _, version := range appVersions {
+			impl.logger.Infow("app versions meta data", "metadata", version.GetMetadata())
+		}
 		err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
 		if err != nil {
 			impl.logger.Errorw("error in updating", "totalIn", chartVersionsCount, "totalOut", len(appVersions), "err", err)
@@ -519,6 +525,9 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 		if err == nil {
 			application.Latest = false
 			latestFlagAppVersions = append(latestFlagAppVersions, application)
+		}
+		for _, latestFlagAppVersion := range latestFlagAppVersions {
+			impl.logger.Infow("app versions meta data", "metadata", latestFlagAppVersion.GetMetadata())
 		}
 		err = impl.appStoreApplicationVersionRepository.Update(latestFlagAppVersions)
 		if err != nil {
