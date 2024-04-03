@@ -10,7 +10,7 @@ type AppStoreApplicationVersionRepository interface {
 	FindVersionsByAppStoreId(appStoreId int) ([]*AppStoreApplicationVersion, error)
 	Save(versions *[]*AppStoreApplicationVersion) error
 	FindLatestCreated(appStoreId int) (*AppStoreApplicationVersion, error)
-	FindOneByAppStoreIdAndVersion(appStoreId int, version string) (*AppStoreApplicationVersion, error)
+	FindLatestCreatedByAppStoreId(appStoreId int) (*AppStoreApplicationVersion, error)
 	FindLatest(appStoreId int) (*AppStoreApplicationVersion, error)
 	Update(appVersions []*AppStoreApplicationVersion) error
 }
@@ -73,11 +73,11 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindLatestCreated(appStoreI
 	return appStoreApplicationVersion, err
 }
 
-func (impl AppStoreApplicationVersionRepositoryImpl) FindOneByAppStoreIdAndVersion(appStoreId int, version string) (*AppStoreApplicationVersion, error) {
+func (impl AppStoreApplicationVersionRepositoryImpl) FindLatestCreatedByAppStoreId(appStoreId int) (*AppStoreApplicationVersion, error) {
 	appStoreApplicationVersion := &AppStoreApplicationVersion{}
 	err := impl.dbConnection.Model(appStoreApplicationVersion).
 		Where("app_store_id =?", appStoreId).
-		Where("version =?", version).
+		OrderExpr("order by created desc ").
 		Limit(1).
 		Select()
 	return appStoreApplicationVersion, err
