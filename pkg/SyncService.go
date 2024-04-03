@@ -408,7 +408,6 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 	}
 	var appVersions []*sql.AppStoreApplicationVersion
 	var isAnyChartVersionFound bool
-	var latestChartVersion string
 	for _, chartVersion := range chartVersions {
 		if _, ok := applicationVersionMaps[chartVersion]; ok {
 			//already present
@@ -463,10 +462,6 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 			AppStore:         nil,
 		}
 		appVersions = append(appVersions, application)
-
-		if len(latestChartVersion) == 0 {
-			latestChartVersion = application.Version
-		}
 
 		// save 20 versions and reset the array (as memory would go increasing if save on one-go)
 		if len(appVersions) == impl.configuration.AppStoreAppVersionsSaveChunkSize {
