@@ -408,6 +408,7 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 	}
 	var appVersions []*sql.AppStoreApplicationVersion
 	var isAnyChartVersionFound bool
+	var latestChartVersion string
 	for _, chartVersion := range chartVersions {
 		if _, ok := applicationVersionMaps[chartVersion]; ok {
 			//already present
@@ -463,6 +464,10 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 		}
 		appVersions = append(appVersions, application)
 
+		if len(latestChartVersion) == 0 {
+			latestChartVersion = application.Version
+		}
+
 		// save 20 versions and reset the array (as memory would go increasing if save on one-go)
 		if len(appVersions) == impl.configuration.AppStoreAppVersionsSaveChunkSize {
 			// save into DB
@@ -494,7 +499,6 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 	// Update latest version for the chart
 	if chartVersionsCount > 0 {
 		var latestFlagAppVersions []*sql.AppStoreApplicationVersion
-		latestChartVersion := chartVersions[0]
 		latestCreated, err := impl.appStoreApplicationVersionRepository.FindOneByAppStoreIdAndVersion(appId, latestChartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in marking latest", "err", err)
