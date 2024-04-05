@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/chart-sync/internal"
 	"github.com/devtron-labs/chart-sync/internal/sql"
+	registry3 "github.com/devtron-labs/chart-sync/pkg/registry"
 	"github.com/devtron-labs/chart-sync/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
@@ -12,6 +13,7 @@ import (
 	"golang.org/x/exp/slices"
 	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/repo"
+	url2 "net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +32,7 @@ type SyncServiceImpl struct {
 	appStoreRepository                   sql.AppStoreRepository
 	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository
 	configuration                        *internal.Configuration
+	clientGetter                         registry3.ClientGetterImpl
 }
 
 func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
@@ -39,7 +42,9 @@ func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
 	ociRegistryConfigRepository sql.OCIRegistryConfigRepository,
 	appStoreRepository sql.AppStoreRepository,
 	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository,
-	configuration *internal.Configuration) *SyncServiceImpl {
+	configuration *internal.Configuration,
+	clientGetter registry3.ClientGetterImpl,
+) *SyncServiceImpl {
 	return &SyncServiceImpl{
 		chartRepoRepository:                  chartRepoRepository,
 		logger:                               logger,
@@ -49,6 +54,7 @@ func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
 		appStoreRepository:                   appStoreRepository,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		configuration:                        configuration,
+		clientGetter:                         clientGetter,
 	}
 }
 
@@ -151,10 +157,17 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 		}
 	}
 
-	client, err := registry.NewClient()
+	client, err := impl.clientGetter.GetRegistryClient(ociRepo)
 	if err != nil {
-		return nil
+		impl.logger.Errorw("error in getting registry client for registry", "registryName", ociRepo.Id, "err", err)
+		return err
 	}
+	registryURL, err := impl.clientGetter.GetRegistryHostURl(ociRepo)
+	if err != nil {
+		impl.logger.Errorw("error in getting host url for registry", "registryName", ociRepo.Id, "err", err)
+		return err
+	}
+	ociRepo.RegistryURL = registryURL
 	username, password := "", ""
 	if !ociRepo.OCIRegistryConfig[0].IsPublic {
 		username, password, err = impl.helmRepoManager.ExtractCredentialsForRegistry(ociRepo)
@@ -169,7 +182,12 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 		}
 	}
 	for _, chartName := range chartRepoRepositoryList {
-		ref := fmt.Sprintf("%s/%s", strings.TrimSpace(ociRepo.RegistryURL), chartName)
+		url, err := url2.Parse(ociRepo.RegistryURL)
+		if err != nil {
+			impl.logger.Errorw("registry url parse err", "registryURL", ociRepo.RegistryURL, "err", err)
+			return err
+		}
+		ref := fmt.Sprintf("%s/%s", strings.TrimSpace(url.Host), chartName)
 		chartVersions, err := impl.helmRepoManager.FetchOCIChartTagsList(client, ref)
 		if err != nil {
 			impl.logger.Errorw("error in fetching OCI repository tags", "repository url", ref, "err", err)

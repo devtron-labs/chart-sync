@@ -18,12 +18,15 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/repo"
+	"os"
 	"path"
 	"strings"
 )
 
 const (
+	CERTIFICATE_FILE_PATH     = "/registry-credentials"
 	INSECURE_CONNETION_STRING = "insecure"
+	SECURE_WITH_CERT_STRING   = "secure-with-cert"
 )
 
 type HelmRepoManager interface {
@@ -177,16 +180,45 @@ func (impl *HelmRepoManagerImpl) FetchOCIChartTagsList(client *registry.Client, 
 }
 
 func (impl *HelmRepoManagerImpl) RegistryLogin(client *registry.Client, store *sql.DockerArtifactStore, username, password string) error {
+
+	var loginOptions []registry.LoginOption
+	loginOptions = append(loginOptions, registry.LoginOptBasicAuth(username, password))
+	loginOptions = append(loginOptions, registry.LoginOptInsecure(store.Connection == INSECURE_CONNETION_STRING))
+	if store.Connection == SECURE_WITH_CERT_STRING {
+		certificateFilePath, err := createCertificateFile(store.Id, store.Cert)
+		if err != nil {
+			impl.logger.Errorw("error in creating certificate file path for registry", "registryName", store.Id, "err", err)
+			return err
+		}
+		loginOptions = append(loginOptions, registry.LoginOptTLSClientConfig("", "", certificateFilePath))
+	}
+
 	err := client.Login(store.RegistryURL,
-		registry.LoginOptBasicAuth(username, password),
-		registry.LoginOptInsecure(store.Connection == INSECURE_CONNETION_STRING),
-		registry.LoginOptTLSClientConfig(store.Cert, "", ""),
+		loginOptions...,
 	)
 	if err != nil {
 		impl.logger.Errorw("error in registry login, RegistryLogin", "DockerArtifactStoreId", store.Id, "err", err)
 		return err
 	}
 	return nil
+}
+
+func createCertificateFile(registryName, caString string) (string, error) {
+	err := os.MkdirAll(fmt.Sprintf("%s/%s", CERTIFICATE_FILE_PATH, registryName), os.ModePerm)
+	if err != nil {
+		return "", err
+	}
+	filePath := fmt.Sprintf("%s/ca.crt", registryName)
+	f, err := os.Create(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	_, err2 := f.WriteString(caString)
+	if err2 != nil {
+		return "", err
+	}
+	return filePath, nil
 }
 
 func (impl *HelmRepoManagerImpl) ExtractCredentialsForRegistry(registryCredential *sql.DockerArtifactStore) (string, string, error) {
