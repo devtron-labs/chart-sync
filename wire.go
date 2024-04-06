@@ -4,9 +4,9 @@
 package main
 
 import (
-	"github.com/devtron-labs/chart-sync/internal"
-	"github.com/devtron-labs/chart-sync/internal/logger"
-	"github.com/devtron-labs/chart-sync/internal/sql"
+	"github.com/devtron-labs/chart-sync/internals"
+	"github.com/devtron-labs/chart-sync/internals/logger"
+	"github.com/devtron-labs/chart-sync/internals/sql"
 	"github.com/devtron-labs/chart-sync/pkg"
 	"github.com/devtron-labs/chart-sync/pkg/registry"
 	"github.com/google/wire"
@@ -17,7 +17,7 @@ func InitializeApp() (*App, error) {
 		NewApp,
 		logger.NewSugardLogger,
 		sql.GetConfig,
-		internal.ParseConfiguration,
+		internals.ParseConfiguration,
 		sql.NewDbConnection,
 		sql.NewDockerArtifactStoreRepositoryImpl,
 		wire.Bind(new(sql.DockerArtifactStoreRepository), new(*sql.DockerArtifactStoreRepositoryImpl)),

@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
-	"github.com/devtron-labs/chart-sync/internal/sql"
+	"github.com/devtron-labs/chart-sync/internals/sql"
 	"github.com/devtron-labs/chart-sync/util"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/chart"

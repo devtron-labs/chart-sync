@@ -3,8 +3,8 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/chart-sync/internal"
-	"github.com/devtron-labs/chart-sync/internal/sql"
+	"github.com/devtron-labs/chart-sync/internals"
+	"github.com/devtron-labs/chart-sync/internals/sql"
 	registry3 "github.com/devtron-labs/chart-sync/pkg/registry"
 	"github.com/devtron-labs/chart-sync/util"
 	"github.com/ghodss/yaml"
@@ -31,7 +31,7 @@ type SyncServiceImpl struct {
 	ociRegistryConfigRepository          sql.OCIRegistryConfigRepository
 	appStoreRepository                   sql.AppStoreRepository
 	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository
-	configuration                        *internal.Configuration
+	configuration                        *internals.Configuration
 	clientGetter                         registry3.ClientGetterImpl
 }
 
@@ -42,7 +42,7 @@ func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
 	ociRegistryConfigRepository sql.OCIRegistryConfigRepository,
 	appStoreRepository sql.AppStoreRepository,
 	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository,
-	configuration *internal.Configuration,
+	configuration *internals.Configuration,
 	clientGetter registry3.ClientGetterImpl,
 ) *SyncServiceImpl {
 	return &SyncServiceImpl{

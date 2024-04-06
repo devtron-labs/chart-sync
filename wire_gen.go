@@ -7,9 +7,9 @@
 package main
 
 import (
-	"github.com/devtron-labs/chart-sync/internal"
-	"github.com/devtron-labs/chart-sync/internal/logger"
-	"github.com/devtron-labs/chart-sync/internal/sql"
+	"github.com/devtron-labs/chart-sync/internals"
+	"github.com/devtron-labs/chart-sync/internals/logger"
+	"github.com/devtron-labs/chart-sync/internals/sql"
 	"github.com/devtron-labs/chart-sync/pkg"
 )
 
@@ -31,7 +31,7 @@ func InitializeApp() (*App, error) {
 	ociRegistryConfigRepositoryImpl := sql.NewOCIRegistryConfigRepositoryImpl(db)
 	appStoreRepositoryImpl := sql.NewAppStoreRepositoryImpl(sugaredLogger, db)
 	appStoreApplicationVersionRepositoryImpl := sql.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
-	configuration, err := internal.ParseConfiguration()
+	configuration, err := internals.ParseConfiguration()
 	if err != nil {
 		return nil, err
 	}

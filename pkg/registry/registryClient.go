@@ -1,7 +1,7 @@
 package registry
 
 import (
-	"github.com/devtron-labs/chart-sync/internal/sql"
+	"github.com/devtron-labs/chart-sync/internals/sql"
 	"helm.sh/helm/v3/pkg/registry"
 )
 
