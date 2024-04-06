@@ -32,7 +32,7 @@ type SyncServiceImpl struct {
 	appStoreRepository                   sql.AppStoreRepository
 	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository
 	configuration                        *internals.Configuration
-	clientGetter                         registry3.ClientGetterImpl
+	clientGetter                         registry3.ClientGetter
 }
 
 func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
@@ -43,7 +43,7 @@ func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
 	appStoreRepository sql.AppStoreRepository,
 	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository,
 	configuration *internals.Configuration,
-	clientGetter registry3.ClientGetterImpl,
+	clientGetter registry3.ClientGetter,
 ) *SyncServiceImpl {
 	return &SyncServiceImpl{
 		chartRepoRepository:                  chartRepoRepository,

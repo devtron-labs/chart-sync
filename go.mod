@@ -1,6 +1,8 @@
 module github.com/devtron-labs/chart-sync
 
-go 1.20
+go 1.21
+
+toolchain go1.21.8
 
 replace helm.sh/helm/v3 v3.14.3 => github.com/devtron-labs/helm/v3 v3.14.1-0.20240401080259-90238cf69e42
 

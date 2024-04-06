@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/chart-sync/internals/logger"
 	"github.com/devtron-labs/chart-sync/internals/sql"
 	"github.com/devtron-labs/chart-sync/pkg"
+	"github.com/devtron-labs/chart-sync/pkg/registry"
 )
 
 // Injectors from wire.go:
@@ -35,7 +36,8 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	syncServiceImpl := pkg.NewSyncServiceImpl(chartRepoRepositoryImpl, sugaredLogger, helmRepoManagerImpl, dockerArtifactStoreRepositoryImpl, ociRegistryConfigRepositoryImpl, appStoreRepositoryImpl, appStoreApplicationVersionRepositoryImpl, configuration)
+	clientGetterImpl := registry.NewClientGetterImpl()
+	syncServiceImpl := pkg.NewSyncServiceImpl(chartRepoRepositoryImpl, sugaredLogger, helmRepoManagerImpl, dockerArtifactStoreRepositoryImpl, ociRegistryConfigRepositoryImpl, appStoreRepositoryImpl, appStoreApplicationVersionRepositoryImpl, configuration, clientGetterImpl)
 	app := NewApp(sugaredLogger, db, syncServiceImpl)
 	return app, nil
 }
