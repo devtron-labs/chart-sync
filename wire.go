@@ -35,8 +35,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pkg.SyncService), new(*pkg.SyncServiceImpl)),
 		registry.NewClientGetterImpl,
 		wire.Bind(new(registry.ClientGetter), new(*registry.ClientGetterImpl)),
-		sql2.NewRemoteConnectionRepositoryImpl,
-		wire.Bind(new(sql2.RemoteConnectionRepository), new(*sql2.RemoteConnectionRepositoryImpl)),
+		sql.NewRemoteConnectionRepositoryImpl,
+		wire.Bind(new(sql.RemoteConnectionRepository), new(*sql.RemoteConnectionRepositoryImpl)),
 	)
 	return &App{}, nil
 }
