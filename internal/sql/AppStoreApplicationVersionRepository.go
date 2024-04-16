@@ -11,7 +11,6 @@ type AppStoreApplicationVersionRepository interface {
 	Save(versions *[]*AppStoreApplicationVersion) error
 	FindLatestCreated(appStoreId int) (*AppStoreApplicationVersion, error)
 	FindOneByAppStoreIdAndVersion(appStoreId int, version string) (*AppStoreApplicationVersion, error)
-	FindLatest(appStoreId int) (*AppStoreApplicationVersion, error)
 	Update(appVersions []*AppStoreApplicationVersion) error
 }
 
@@ -39,7 +38,6 @@ type AppStoreApplicationVersion struct {
 	Home        string    `sql:"home"`
 	ValuesYaml  string    `sql:"values_yaml"`
 	ChartYaml   string    `sql:"chart_yaml"`
-	Latest      bool      `sql:"latest,notnull"`
 	AppStoreId  int       `sql:"app_store_id"`
 	AuditLog
 	RawValues        string `sql:"raw_values"`
@@ -79,15 +77,6 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindOneByAppStoreIdAndVersi
 		Where("app_store_id =?", appStoreId).
 		Where("version =?", version).
 		Limit(1).
-		Select()
-	return appStoreApplicationVersion, err
-}
-
-func (impl AppStoreApplicationVersionRepositoryImpl) FindLatest(appStoreId int) (*AppStoreApplicationVersion, error) {
-	appStoreApplicationVersion := &AppStoreApplicationVersion{}
-	err := impl.dbConnection.Model(appStoreApplicationVersion).
-		Where("app_store_id =?", appStoreId).
-		Where("latest =?", true).
 		Select()
 	return appStoreApplicationVersion, err
 }
