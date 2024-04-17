@@ -365,18 +365,6 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		}
 	}
 
-	var latestFlagAppVersions []*sql.AppStoreApplicationVersion
-	latestCreated, err := impl.appStoreApplicationVersionRepository.FindLatestCreated(appId)
-	if err != nil {
-		impl.logger.Errorw("error in marking latest", "err", err)
-		return err
-	}
-	latestFlagAppVersions = append(latestFlagAppVersions, latestCreated)
-	err = impl.appStoreApplicationVersionRepository.Update(latestFlagAppVersions)
-	if err != nil {
-		impl.logger.Errorw("error in marking latest", "err", err)
-		return err
-	}
 	return nil
 }
 
