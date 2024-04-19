@@ -464,21 +464,5 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 			return err
 		}
 	}
-	// Update latest version for the chart
-	if chartVersionsCount > 0 {
-		var latestFlagAppVersions []*sql.AppStoreApplicationVersion
-		latestChartVersion := chartVersions[0]
-		latestCreated, err := impl.appStoreApplicationVersionRepository.FindOneByAppStoreIdAndVersion(appId, latestChartVersion)
-		if err != nil {
-			impl.logger.Errorw("error in marking latest", "err", err)
-			return err
-		}
-		latestFlagAppVersions = append(latestFlagAppVersions, latestCreated)
-		err = impl.appStoreApplicationVersionRepository.Update(latestFlagAppVersions)
-		if err != nil {
-			impl.logger.Errorw("error in marking latest", "err", err)
-			return err
-		}
-	}
 	return nil
 }
