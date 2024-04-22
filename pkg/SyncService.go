@@ -321,7 +321,6 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 			Home:       chartVersion.Home,
 			ValuesYaml: string(jsonByte),
 			ChartYaml:  string(chartVersionJson),
-			Latest:     false,
 			AppStoreId: appId,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
@@ -366,31 +365,6 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 		}
 	}
 
-	var latestFlagAppVersions []*sql.AppStoreApplicationVersion
-	latestCreated, err := impl.appStoreApplicationVersionRepository.FindLatestCreated(appId)
-	if err != nil {
-		impl.logger.Errorw("error in marking latest", "err", err)
-		return err
-	}
-	latestCreated.Latest = true
-	latestFlagAppVersions = append(latestFlagAppVersions, latestCreated)
-	application, err := impl.appStoreApplicationVersionRepository.FindLatest(appId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in marking latest", "err", err)
-		return err
-	}
-	// There can be a case when created time of chart in index.yaml file is "0001-01-01T00:00:00Z" .
-	//In this case this latestCreated and application will be pointing to same chart and latest chart will be updated false from below code.
-	// Therefore, putting application.Id != latestCreated.Id so that latest chart is not updated with latest=falsegit r
-	if err == nil && application.Id != latestCreated.Id {
-		application.Latest = false
-		latestFlagAppVersions = append(latestFlagAppVersions, application)
-	}
-	err = impl.appStoreApplicationVersionRepository.Update(latestFlagAppVersions)
-	if err != nil {
-		impl.logger.Errorw("error in marking latest", "err", err)
-		return err
-	}
 	return nil
 }
 
@@ -447,7 +421,6 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 			Name:        metaData.Name,
 			ValuesYaml:  string(jsonByte),
 			ChartYaml:   string(chartVersionJson),
-			Latest:      false,
 			AppStoreId:  appId,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
@@ -488,35 +461,6 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Cli
 		err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
 		if err != nil {
 			impl.logger.Errorw("error in updating", "totalIn", chartVersionsCount, "totalOut", len(appVersions), "err", err)
-			return err
-		}
-	}
-	// Update latest version for the chart
-	if chartVersionsCount > 0 {
-		var latestFlagAppVersions []*sql.AppStoreApplicationVersion
-		latestChartVersion := chartVersions[0]
-		latestCreated, err := impl.appStoreApplicationVersionRepository.FindOneByAppStoreIdAndVersion(appId, latestChartVersion)
-		if err != nil {
-			impl.logger.Errorw("error in marking latest", "err", err)
-			return err
-		}
-		latestCreated.Latest = true
-		latestFlagAppVersions = append(latestFlagAppVersions, latestCreated)
-		application, err := impl.appStoreApplicationVersionRepository.FindLatest(appId)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in marking latest", "err", err)
-			return err
-		}
-		if application.Id == latestCreated.Id {
-			return nil
-		}
-		if err == nil {
-			application.Latest = false
-			latestFlagAppVersions = append(latestFlagAppVersions, application)
-		}
-		err = impl.appStoreApplicationVersionRepository.Update(latestFlagAppVersions)
-		if err != nil {
-			impl.logger.Errorw("error in marking latest", "err", err)
 			return err
 		}
 	}
