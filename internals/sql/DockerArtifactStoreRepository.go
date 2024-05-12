@@ -77,7 +77,7 @@ func NewDockerArtifactStoreRepositoryImpl(dbConnection *pg.DB) *DockerArtifactSt
 func (impl DockerArtifactStoreRepositoryImpl) FindAllChartProviders() ([]*DockerArtifactStore, error) {
 	var providers []*DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
-		Column("docker_artifact_store.*", "OCIRegistryConfig").
+		Column("docker_artifact_store.*", "OCIRegistryConfig", "RemoteConnectionConfig").
 		Where("active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE and " +
@@ -91,7 +91,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAllChartProviders() ([]*Docker
 func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerArtifactStore, error) {
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
-		Column("docker_artifact_store.*", "OCIRegistryConfig").
+		Column("docker_artifact_store.*", "OCIRegistryConfig", "RemoteConnectionConfig").
 		Where("docker_artifact_store.id = ?", storeId).
 		Where("active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
