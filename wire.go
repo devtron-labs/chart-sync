@@ -8,7 +8,7 @@ import (
 	"github.com/devtron-labs/chart-sync/internals/logger"
 	"github.com/devtron-labs/chart-sync/internals/sql"
 	"github.com/devtron-labs/chart-sync/pkg"
-	"github.com/devtron-labs/chart-sync/pkg/registry"
+	"github.com/devtron-labs/common-lib/helmLib/registry"
 	"github.com/google/wire"
 )
 
@@ -33,10 +33,14 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pkg.HelmRepoManager), new(*pkg.HelmRepoManagerImpl)),
 		pkg.NewSyncServiceImpl,
 		wire.Bind(new(pkg.SyncService), new(*pkg.SyncServiceImpl)),
-		registry.NewClientGetterImpl,
-		wire.Bind(new(registry.ClientGetter), new(*registry.ClientGetterImpl)),
-		sql.NewRemoteConnectionRepositoryImpl,
-		wire.Bind(new(sql.RemoteConnectionRepository), new(*sql.RemoteConnectionRepositoryImpl)),
+		registry.NewSettingsFactoryImpl,
+		wire.Bind(new(registry.SettingsFactory), new(*registry.SettingsFactoryImpl)),
+
+		registry.NewDefaultSettingsGetter,
+		wire.Bind(new(registry.DefaultSettingsGetter), new(*registry.DefaultSettingsGetterImpl)),
+
+		//sql.NewRemoteConnectionRepositoryImpl,
+		//wire.Bind(new(sql.RemoteConnectionRepository), new(*sql.RemoteConnectionRepositoryImpl)),
 	)
 	return &App{}, nil
 }

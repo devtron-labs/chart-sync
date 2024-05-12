@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"github.com/devtron-labs/chart-sync/internals"
 	"github.com/devtron-labs/chart-sync/internals/sql"
-	registry3 "github.com/devtron-labs/chart-sync/pkg/registry"
+	registry2 "github.com/devtron-labs/chart-sync/pkg/registry"
 	"github.com/devtron-labs/chart-sync/util"
+	registry3 "github.com/devtron-labs/common-lib/helmLib/registry"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -32,7 +33,7 @@ type SyncServiceImpl struct {
 	appStoreRepository                   sql.AppStoreRepository
 	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository
 	configuration                        *internals.Configuration
-	clientGetter                         registry3.ClientGetter
+	registrySettings                     registry3.SettingsFactory
 }
 
 func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
@@ -43,7 +44,7 @@ func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
 	appStoreRepository sql.AppStoreRepository,
 	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository,
 	configuration *internals.Configuration,
-	clientGetter registry3.ClientGetter,
+	registrySettings registry3.SettingsFactory,
 ) *SyncServiceImpl {
 	return &SyncServiceImpl{
 		chartRepoRepository:                  chartRepoRepository,
@@ -54,7 +55,7 @@ func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
 		appStoreRepository:                   appStoreRepository,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		configuration:                        configuration,
-		clientGetter:                         clientGetter,
+		registrySettings:                     registrySettings,
 	}
 }
 
@@ -156,18 +157,19 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 			return nil
 		}
 	}
-
-	client, err := impl.clientGetter.GetRegistryClient(ociRepo)
+	registryConfig := registry2.ConvertToRegistryConfig(ociRepo)
+	settingsGetter, err := impl.registrySettings.GetSettings(registryConfig)
 	if err != nil {
-		impl.logger.Errorw("error in getting registry client for registry", "registryName", ociRepo.Id, "err", err)
+		impl.logger.Errorw("error in getting registry settings", "err", err)
+		return nil
+	}
+	settings, err := settingsGetter.GetRegistrySettings(registryConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting registry settings for registry", "registryName", ociRepo.Id, "err", err)
 		return err
 	}
-	registryURL, err := impl.clientGetter.GetRegistryHostURl(ociRepo)
-	if err != nil {
-		impl.logger.Errorw("error in getting host url for registry", "registryName", ociRepo.Id, "err", err)
-		return err
-	}
-	ociRepo.RegistryURL = registryURL
+	client := settings.RegistryClient
+	ociRepo.RegistryURL = settings.RegistryHostURL
 	username, password := "", ""
 	if !ociRepo.OCIRegistryConfig[0].IsPublic {
 		username, password, err = impl.helmRepoManager.ExtractCredentialsForRegistry(ociRepo)
