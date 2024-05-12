@@ -170,19 +170,7 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 	}
 	client := settings.RegistryClient
 	ociRepo.RegistryURL = settings.RegistryHostURL
-	username, password := "", ""
-	if !ociRepo.OCIRegistryConfig[0].IsPublic {
-		username, password, err = impl.helmRepoManager.ExtractCredentialsForRegistry(ociRepo)
-		if err != nil {
-			impl.logger.Errorw("error extracting AWS credentials", "registry id", ociRepo.Id, "err", err)
-			return nil
-		}
-		err = impl.helmRepoManager.RegistryLogin(client, ociRepo, username, password)
-		if err != nil {
-			impl.logger.Errorw("error logging in to OCI registry", "registry id", ociRepo.Id, "err", err)
-			return nil
-		}
-	}
+
 	for _, chartName := range chartRepoRepositoryList {
 		url, err := url2.Parse(ociRepo.RegistryURL)
 		if err != nil {
@@ -228,7 +216,7 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 		}
 		//update entries if any  id, chartVersions
 		impl.logger.Infow("handling all versions of chart", "registryName", ociRepo.Id, "chartName", chartName, "chartVersions", len(chartVersions))
-		err = impl.updateOCIRegistryChartVersions(client, id, chartVersions, ociRepo, chartName, username, password)
+		err = impl.updateOCIRegistryChartVersions(client, id, chartVersions, ociRepo, chartName)
 		if err != nil {
 			impl.logger.Errorw("error in updating chart versions", "err", err, "appId", id)
 			continue
@@ -414,7 +402,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 	return nil
 }
 
-func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Client, appId int, chartVersions []string, ociRepo *sql.DockerArtifactStore, chartName, username, password string) error {
+func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Client, appId int, chartVersions []string, ociRepo *sql.DockerArtifactStore, chartName string) error {
 	chartVersionsCount := len(chartVersions)
 	applicationVersions, err := impl.appStoreApplicationVersionRepository.FindVersionsByAppStoreId(appId)
 	if err != nil {
