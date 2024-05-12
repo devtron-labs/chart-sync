@@ -18,6 +18,7 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/repo"
+	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -268,7 +269,7 @@ func (impl *HelmRepoManagerImpl) ExtractCredentialsForRegistry(registryCredentia
 
 func (impl *HelmRepoManagerImpl) LoadChartFromOCIRepo(client *registry.Client, registryUrl, chartname, version string) (*chart.Chart, string, error) {
 	ref := fmt.Sprintf("%s:%s",
-		path.Join(strings.TrimPrefix(registryUrl, fmt.Sprintf("%s://", registry.OCIScheme)), chartname),
+		path.Join(TrimSchemeFromURL(registryUrl), chartname),
 		version)
 	chartDetails, err := client.Pull(
 		ref,
@@ -292,4 +293,14 @@ func (impl *HelmRepoManagerImpl) LoadChartFromOCIRepo(client *registry.Client, r
 		return nil, "", err
 	}
 	return chart, chartDetails.Chart.Digest, nil
+}
+
+func TrimSchemeFromURL(registryUrl string) string {
+	parsedUrl, err := url.Parse(registryUrl)
+	if err != nil {
+		return registryUrl
+	}
+	urlWithoutScheme := parsedUrl.Host + parsedUrl.Path
+	urlWithoutScheme = strings.TrimPrefix(urlWithoutScheme, "/")
+	return urlWithoutScheme
 }
