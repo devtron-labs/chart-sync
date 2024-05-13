@@ -178,11 +178,14 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 			return err
 		}
 		ref := fmt.Sprintf("%s/%s", strings.TrimSpace(url.Host), chartName)
-		chartVersions, err := impl.helmRepoManager.FetchOCIChartTagsList(client, ref)
+		var chartVersions []string
+
+		chartVersions, err = impl.helmRepoManager.FetchOCIChartTagsList(settings, ref)
 		if err != nil {
 			impl.logger.Errorw("error in fetching OCI repository tags", "repository url", ref, "err", err)
 			continue
 		}
+
 		id, ok := applicationId[chartName]
 		if !ok {
 			app, fetchErr := impl.appStoreRepository.FindInactiveOneByName(ociRepo.Id, chartName)

@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/devtron-labs/chart-sync/internals/sql"
 	"github.com/devtron-labs/chart-sync/util"
+	registry2 "github.com/devtron-labs/common-lib/helmLib/registry"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -36,7 +37,7 @@ type HelmRepoManager interface {
 	OCIRepoValuesJson(client *registry.Client, registryUrl, chartName, version string) (metaData *chart.Metadata, rawValues, readme, valuesSchemaJson, notes, diagest string, err error)
 	RegistryLogin(client *registry.Client, store *sql.DockerArtifactStore, username, password string) error
 	ExtractCredentialsForRegistry(registryCredential *sql.DockerArtifactStore) (string, string, error)
-	FetchOCIChartTagsList(client *registry.Client, ociRepoURL string) ([]string, error)
+	FetchOCIChartTagsList(settings *registry2.Settings, ociRepoURL string) ([]string, error)
 	LoadChartFromOCIRepo(client *registry.Client, registryUrl, chartName, version string) (*chart.Chart, string, error)
 }
 
@@ -167,8 +168,9 @@ func (impl *HelmRepoManagerImpl) OCIRepoValuesJson(client *registry.Client, regi
 }
 
 // FetchOCIChartTagsList list down all tags in of the given repository without pagination.
-func (impl *HelmRepoManagerImpl) FetchOCIChartTagsList(client *registry.Client, ociRepoURL string) ([]string, error) {
+func (impl *HelmRepoManagerImpl) FetchOCIChartTagsList(settings *registry2.Settings, ociRepoURL string) ([]string, error) {
 	// Retrieve list of repository tags
+	client := settings.RegistryClient
 	tags, err := client.FetchAllTags(strings.TrimPrefix(ociRepoURL, fmt.Sprintf("%s://", registry.OCIScheme)))
 	if err != nil || len(tags) == 0 {
 		if err != nil {
