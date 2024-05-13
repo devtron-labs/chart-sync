@@ -42,14 +42,14 @@ type HelmRepoManager interface {
 }
 
 type HelmRepoManagerImpl struct {
-	logger   *zap.SugaredLogger
-	settings *cli.EnvSettings
+	Logger   *zap.SugaredLogger
+	Settings *cli.EnvSettings
 }
 
 func NewHelmRepoManagerImpl(logger *zap.SugaredLogger) *HelmRepoManagerImpl {
 	return &HelmRepoManagerImpl{
-		logger:   logger,
-		settings: cli.New(),
+		Logger:   logger,
+		Settings: cli.New(),
 	}
 }
 
@@ -176,7 +176,7 @@ func (impl *HelmRepoManagerImpl) FetchOCIChartTagsList(settings *registry2.Setti
 		if err != nil {
 			err = fmt.Errorf("unable to locate any tags in provided repository: %s", ociRepoURL)
 		}
-		impl.logger.Errorw("error in fetching repository tags, FetchOCIChartTagsList", "repo url", ociRepoURL, "err", err)
+		impl.Logger.Errorw("error in fetching repository tags, FetchOCIChartTagsList", "repo url", ociRepoURL, "err", err)
 		return nil, err
 	}
 	return tags, nil
@@ -190,7 +190,7 @@ func (impl *HelmRepoManagerImpl) RegistryLogin(client *registry.Client, store *s
 	if store.Connection == SECURE_WITH_CERT_STRING {
 		certificateFilePath, err := createCertificateFile(store.Id, store.Cert)
 		if err != nil {
-			impl.logger.Errorw("error in creating certificate file path for registry", "registryName", store.Id, "err", err)
+			impl.Logger.Errorw("error in creating certificate file path for registry", "registryName", store.Id, "err", err)
 			return err
 		}
 		loginOptions = append(loginOptions, registry.LoginOptTLSClientConfig("", "", certificateFilePath))
@@ -200,7 +200,7 @@ func (impl *HelmRepoManagerImpl) RegistryLogin(client *registry.Client, store *s
 		loginOptions...,
 	)
 	if err != nil {
-		impl.logger.Errorw("error in registry login, RegistryLogin", "DockerArtifactStoreId", store.Id, "err", err)
+		impl.Logger.Errorw("error in registry login, RegistryLogin", "DockerArtifactStoreId", store.Id, "err", err)
 		return err
 	}
 	return nil
@@ -283,7 +283,7 @@ func (impl *HelmRepoManagerImpl) LoadChartFromOCIRepo(client *registry.Client, r
 		if err == nil {
 			err = fmt.Errorf("error in pulling chart from registry, ChartRepo: %s", ref)
 		}
-		impl.logger.Errorw("error in pulling chart from registry, LoadChartFromOCIRepo", "chart repo", ref, "err", err)
+		impl.Logger.Errorw("error in pulling chart from registry, LoadChartFromOCIRepo", "chart repo", ref, "err", err)
 		return nil, "", err
 	}
 	chart, err := loader.LoadArchive(bytes.NewBuffer(chartDetails.Chart.Data))
@@ -291,7 +291,7 @@ func (impl *HelmRepoManagerImpl) LoadChartFromOCIRepo(client *registry.Client, r
 		if err == nil {
 			err = fmt.Errorf("error in loading chart bytes, ChartRepo: %s", ref)
 		}
-		impl.logger.Errorw("error in loading chart bytes, LoadChartFromOCIRepo", "chart repo", ref, "err", err)
+		impl.Logger.Errorw("error in loading chart bytes, LoadChartFromOCIRepo", "chart repo", ref, "err", err)
 		return nil, "", err
 	}
 	return chart, chartDetails.Chart.Digest, nil
