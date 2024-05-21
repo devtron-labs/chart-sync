@@ -3,7 +3,6 @@ package registry
 import (
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/registry"
-	"net/http"
 )
 
 type DefaultSettingsGetter interface {
@@ -41,7 +40,7 @@ func (s *DefaultSettingsGetterImpl) getRegistryClient(config *Configuration) (*r
 
 	var caFilePath string
 	var err error
-	if config.RegistryConnectionType == SECURE_WITH_CERT {
+	if len(config.RegistryCAFilePath) == 0 && config.RegistryConnectionType == SECURE_WITH_CERT {
 		caFilePath, err = CreateCertificateFile(config.RegistryId, config.RegistryCertificateString)
 		if err != nil {
 			s.logger.Errorw("error in creating certificate file path", "registryName", config.RegistryId, "err", err)
@@ -50,7 +49,7 @@ func (s *DefaultSettingsGetterImpl) getRegistryClient(config *Configuration) (*r
 	}
 
 	config.RegistryCAFilePath = caFilePath
-	httpClient, err := getHttpClient(config)
+	httpClient, err := GetHttpClient(config)
 	if err != nil {
 		s.logger.Errorw("error in getting http client", "registryName", config.RegistryId, "err", err)
 		return nil, err
@@ -69,22 +68,4 @@ func (s *DefaultSettingsGetterImpl) getRegistryClient(config *Configuration) (*r
 		}
 	}
 	return registryClient, nil
-}
-
-func getHttpClient(config *Configuration) (*http.Client, error) {
-	if len(config.RegistryCAFilePath) == 0 {
-		caFilePath, err := CreateCertificateFile(config.RegistryId, config.RegistryCertificateString)
-		if err != nil {
-			return nil, err
-		}
-		config.RegistryCAFilePath = caFilePath
-	}
-	tlsConfig, err := GetTlsConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	httpClient := &http.Client{
-		Transport: &http.Transport{TLSClientConfig: tlsConfig},
-	}
-	return httpClient, nil
 }

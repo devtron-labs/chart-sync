@@ -9,7 +9,7 @@ replace helm.sh/helm/v3 v3.14.3 => github.com/devtron-labs/helm/v3 v3.14.1-0.202
 require (
 	github.com/aws/aws-sdk-go v1.44.306
 	github.com/caarlos0/env v3.5.0+incompatible
-	github.com/devtron-labs/common-lib v0.0.18-0.20240514104219-c67d61ed2ca3
+	github.com/devtron-labs/common-lib v0.0.18-0.20240521074504-7e820e02e560
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-pg/pg v6.15.1+incompatible
 	github.com/google/wire v0.6.0
