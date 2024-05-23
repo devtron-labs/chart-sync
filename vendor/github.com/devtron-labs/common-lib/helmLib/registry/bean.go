@@ -51,5 +51,5 @@ const (
 )
 
 const (
-	REGISTRY_CREDENTIAL_BASE_PATH = "/home/devtron/registry-credentials"
+	REGISTRY_CREDENTIAL_BASE_PATH = "/Users/ayushmaheshwari/go/src/github.com/devtron-labs/chart-sync"
 )

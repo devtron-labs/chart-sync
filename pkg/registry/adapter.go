@@ -6,7 +6,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/remoteConnection/bean"
 )
 
-func ConvertToRegistryConfig(store *sql.DockerArtifactStore) *registry.Configuration {
+func NewToRegistryConfig(store *sql.DockerArtifactStore) (*registry.Configuration, error) {
 	remoteConnectionConfig := &bean.RemoteConnectionConfigBean{}
 	if store.RemoteConnectionConfig != nil && store.RemoteConnectionConfigId > 0 {
 		remoteConnectionConfig.ConnectionMethod = bean.RemoteConnectionMethod(store.RemoteConnectionConfig.ConnectionMethod)
@@ -24,18 +24,27 @@ func ConvertToRegistryConfig(store *sql.DockerArtifactStore) *registry.Configura
 			}
 		}
 	}
-	return &registry.Configuration{
-		RegistryId:             store.Id,
-		RegistryUrl:            store.RegistryURL,
-		Username:               store.Username,
-		Password:               store.Password,
-		AwsAccessKey:           store.AWSAccessKeyId,
-		AwsSecretKey:           store.AWSSecretAccessKey,
-		AwsRegion:              store.AWSRegion,
-		RegistryConnectionType: store.Connection,
-		RegistryCAFilePath:     store.Cert,
-		RegistryType:           string(store.RegistryType),
-		IsPublicRegistry:       store.OCIRegistryConfig[0].IsPublic,
-		RemoteConnectionConfig: remoteConnectionConfig,
+	var certificatePath string
+	var err error
+	if store.Connection == registry.SECURE_WITH_CERT {
+		certificatePath, err = registry.CreateCertificateFile(store.Id, store.Cert)
+		if err != nil {
+			return nil, err
+		}
 	}
+	return &registry.Configuration{
+		RegistryId:                store.Id,
+		RegistryUrl:               store.RegistryURL,
+		Username:                  store.Username,
+		Password:                  store.Password,
+		AwsAccessKey:              store.AWSAccessKeyId,
+		AwsSecretKey:              store.AWSSecretAccessKey,
+		AwsRegion:                 store.AWSRegion,
+		RegistryConnectionType:    store.Connection,
+		RegistryCertificateString: store.Cert,
+		RegistryCAFilePath:        certificatePath,
+		RegistryType:              string(store.RegistryType),
+		IsPublicRegistry:          store.OCIRegistryConfig[0].IsPublic,
+		RemoteConnectionConfig:    remoteConnectionConfig,
+	}, nil
 }

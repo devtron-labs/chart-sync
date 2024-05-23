@@ -157,10 +157,20 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 			return nil
 		}
 	}
-	registryConfig := registry2.ConvertToRegistryConfig(ociRepo)
+	registryConfig, err := registry2.NewToRegistryConfig(ociRepo)
+	defer func() {
+		err := registry3.DeleteCertificateFolder(registryConfig.RegistryCAFilePath)
+		if err != nil {
+			impl.logger.Errorw("error in deleting certificate folder", "registryName", registryConfig.RegistryId, "err", err)
+		}
+	}()
+	if err != nil {
+		impl.logger.Errorw("error in getting registry config", "registryName", registryConfig.RegistryId, "err", err)
+		return nil
+	}
 	settingsGetter, err := impl.registrySettings.GetSettings(registryConfig)
 	if err != nil {
-		impl.logger.Errorw("error in getting registry settings", "err", err)
+		impl.logger.Errorw("error in getting registry settings", "registryName", registryConfig.RegistryId, "err", err)
 		return nil
 	}
 	settings, err := settingsGetter.GetRegistrySettings(registryConfig)
