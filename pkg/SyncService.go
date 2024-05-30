@@ -182,7 +182,7 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 	ociRepo.RegistryURL = settings.RegistryHostURL
 
 	for _, chartName := range chartRepoRepositoryList {
-		url, err := url2.Parse(ociRepo.RegistryURL)
+		url, err := url2.Parse(fmt.Sprintf("//%s", ociRepo.RegistryURL))
 		if err != nil {
 			impl.logger.Errorw("registry url parse err", "registryURL", ociRepo.RegistryURL, "err", err)
 			return err
