@@ -186,7 +186,7 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 		if !strings.Contains(strings.ToLower(ociRepo.RegistryURL), "https") && !strings.Contains(strings.ToLower(ociRepo.RegistryURL), "http") {
 			url, err = url2.Parse(fmt.Sprintf("//%s", ociRepo.RegistryURL))
 		} else {
-			url, err = url2.Parse(fmt.Sprintf("%s", ociRepo.RegistryURL))
+			url, err = url2.Parse(ociRepo.RegistryURL)
 		}
 
 		if err != nil {
