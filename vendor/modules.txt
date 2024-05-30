@@ -92,7 +92,7 @@ github.com/containerd/log
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/devtron-labs/common-lib v0.0.19-0.20240528061646-9bfd068a2652
+# github.com/devtron-labs/common-lib v0.0.19-0.20240530111553-ee89994734e8
 ## explicit; go 1.21
 github.com/devtron-labs/common-lib/helmLib/registry
 github.com/devtron-labs/common-lib/utils/remoteConnection/bean
