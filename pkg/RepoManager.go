@@ -2,13 +2,7 @@ package pkg
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/devtron-labs/chart-sync/internals/sql"
 	"github.com/devtron-labs/chart-sync/util"
 	registry2 "github.com/devtron-labs/common-lib/helmLib/registry"
@@ -20,7 +14,6 @@ import (
 	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/repo"
 	"net/url"
-	"os"
 	"path"
 	"strings"
 )
@@ -36,7 +29,6 @@ type HelmRepoManager interface {
 	ValuesJson(repoUrl string, version *repo.ChartVersion, username string, password string, allowInsecureConnection bool) (rawValues string, readme string, valuesSchemaJson string, notes string, err error)
 	OCIRepoValuesJson(client *registry.Client, registryUrl, chartName, version string) (metaData *chart.Metadata, rawValues, readme, valuesSchemaJson, notes, diagest string, err error)
 	RegistryLogin(client *registry.Client, store *sql.DockerArtifactStore, username, password string) error
-	ExtractCredentialsForRegistry(registryCredential *sql.DockerArtifactStore) (string, string, error)
 	FetchOCIChartTagsList(settings *registry2.Settings, ociRepoURL string) ([]string, error)
 	LoadChartFromOCIRepo(client *registry.Client, registryUrl, chartName, version string) (*chart.Chart, string, error)
 }
@@ -188,7 +180,7 @@ func (impl *HelmRepoManagerImpl) RegistryLogin(client *registry.Client, store *s
 	loginOptions = append(loginOptions, registry.LoginOptBasicAuth(username, password))
 	loginOptions = append(loginOptions, registry.LoginOptInsecure(store.Connection == INSECURE_CONNETION_STRING))
 	if store.Connection == SECURE_WITH_CERT_STRING {
-		certificateFilePath, err := createCertificateFile(store.Id, store.Cert)
+		certificateFilePath, err := registry2.CreateCertificateFile(store.Id, store.Cert)
 		if err != nil {
 			impl.Logger.Errorw("error in creating certificate file path for registry", "registryName", store.Id, "err", err)
 			return err
@@ -204,69 +196,6 @@ func (impl *HelmRepoManagerImpl) RegistryLogin(client *registry.Client, store *s
 		return err
 	}
 	return nil
-}
-
-func createCertificateFile(registryName, caString string) (string, error) {
-	err := os.MkdirAll(fmt.Sprintf("%s/%s", CERTIFICATE_FILE_PATH, registryName), os.ModePerm)
-	if err != nil {
-		return "", err
-	}
-	filePath := fmt.Sprintf("%s/ca.crt", registryName)
-	f, err := os.Create(filePath)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	_, err2 := f.WriteString(caString)
-	if err2 != nil {
-		return "", err
-	}
-	return filePath, nil
-}
-
-func (impl *HelmRepoManagerImpl) ExtractCredentialsForRegistry(registryCredential *sql.DockerArtifactStore) (string, string, error) {
-	username := registryCredential.Username
-	pwd := registryCredential.Password
-	if registryCredential.RegistryType == sql.REGISTRYTYPE_ECR {
-		accessKey, secretKey := registryCredential.AWSAccessKeyId, registryCredential.AWSSecretAccessKey
-		var creds *credentials.Credentials
-
-		if len(accessKey) == 0 || len(secretKey) == 0 {
-			sess, err := session.NewSession(&aws.Config{
-				Region: &registryCredential.AWSRegion,
-			})
-			if err != nil {
-				return "", "", err
-			}
-			creds = ec2rolecreds.NewCredentials(sess)
-		} else {
-			creds = credentials.NewStaticCredentials(accessKey, secretKey, "")
-		}
-		sess, err := session.NewSession(&aws.Config{
-			Region:      &registryCredential.AWSRegion,
-			Credentials: creds,
-		})
-		if err != nil {
-			return "", "", err
-		}
-		svc := ecr.New(sess)
-		input := &ecr.GetAuthorizationTokenInput{}
-		authData, err := svc.GetAuthorizationToken(input)
-		if err != nil {
-			return "", "", err
-		}
-		// decode token
-		token := authData.AuthorizationData[0].AuthorizationToken
-		decodedToken, err := base64.StdEncoding.DecodeString(*token)
-		if err != nil {
-			return "", "", err
-		}
-		credsSlice := strings.Split(string(decodedToken), ":")
-		username = credsSlice[0]
-		pwd = credsSlice[1]
-
-	}
-	return username, pwd, nil
 }
 
 func (impl *HelmRepoManagerImpl) LoadChartFromOCIRepo(client *registry.Client, registryUrl, chartname, version string) (*chart.Chart, string, error) {
