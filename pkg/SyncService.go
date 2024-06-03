@@ -159,9 +159,11 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 	}
 	registryConfig, err := registry2.NewToRegistryConfig(ociRepo)
 	defer func() {
-		err := registry3.DeleteCertificateFolder(registryConfig.RegistryCAFilePath)
-		if err != nil {
-			impl.logger.Errorw("error in deleting certificate folder", "registryName", registryConfig.RegistryId, "err", err)
+		if registryConfig != nil {
+			err := registry3.DeleteCertificateFolder(registryConfig.RegistryCAFilePath)
+			if err != nil {
+				impl.logger.Errorw("error in deleting certificate folder", "registryName", registryConfig.RegistryId, "err", err)
+			}
 		}
 	}()
 	if err != nil {
