@@ -20,7 +20,7 @@ package util
 import (
 	"bytes"
 	"fmt"
-	"github.com/devtron-labs/chart-sync/internals/sql"
+	"github.com/devtron-labs/chart-sync/internal/sql"
 	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"

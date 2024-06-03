@@ -1,4 +1,4 @@
-package internals
+package internal
 
 import "github.com/caarlos0/env"
 
