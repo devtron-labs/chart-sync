@@ -2,10 +2,15 @@ package pkg
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
-	"github.com/devtron-labs/chart-sync/internals/sql"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/devtron-labs/chart-sync/internal/sql"
 	"github.com/devtron-labs/chart-sync/util"
-	registry2 "github.com/devtron-labs/common-lib/helmLib/registry"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -13,15 +18,12 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/repo"
-	"net/url"
 	"path"
 	"strings"
 )
 
 const (
-	CERTIFICATE_FILE_PATH     = "/registry-credentials"
 	INSECURE_CONNETION_STRING = "insecure"
-	SECURE_WITH_CERT_STRING   = "secure-with-cert"
 )
 
 type HelmRepoManager interface {
@@ -29,19 +31,20 @@ type HelmRepoManager interface {
 	ValuesJson(repoUrl string, version *repo.ChartVersion, username string, password string, allowInsecureConnection bool) (rawValues string, readme string, valuesSchemaJson string, notes string, err error)
 	OCIRepoValuesJson(client *registry.Client, registryUrl, chartName, version string) (metaData *chart.Metadata, rawValues, readme, valuesSchemaJson, notes, diagest string, err error)
 	RegistryLogin(client *registry.Client, store *sql.DockerArtifactStore, username, password string) error
-	FetchOCIChartTagsList(settings *registry2.Settings, ociRepoURL string) ([]string, error)
+	ExtractCredentialsForRegistry(registryCredential *sql.DockerArtifactStore) (string, string, error)
+	FetchOCIChartTagsList(client *registry.Client, ociRepoURL string) ([]string, error)
 	LoadChartFromOCIRepo(client *registry.Client, registryUrl, chartName, version string) (*chart.Chart, string, error)
 }
 
 type HelmRepoManagerImpl struct {
-	Logger   *zap.SugaredLogger
-	Settings *cli.EnvSettings
+	logger   *zap.SugaredLogger
+	settings *cli.EnvSettings
 }
 
 func NewHelmRepoManagerImpl(logger *zap.SugaredLogger) *HelmRepoManagerImpl {
 	return &HelmRepoManagerImpl{
-		Logger:   logger,
-		Settings: cli.New(),
+		logger:   logger,
+		settings: cli.New(),
 	}
 }
 
@@ -160,47 +163,80 @@ func (impl *HelmRepoManagerImpl) OCIRepoValuesJson(client *registry.Client, regi
 }
 
 // FetchOCIChartTagsList list down all tags in of the given repository without pagination.
-func (impl *HelmRepoManagerImpl) FetchOCIChartTagsList(settings *registry2.Settings, ociRepoURL string) ([]string, error) {
+func (impl *HelmRepoManagerImpl) FetchOCIChartTagsList(client *registry.Client, ociRepoURL string) ([]string, error) {
 	// Retrieve list of repository tags
-	client := settings.RegistryClient
 	tags, err := client.FetchAllTags(strings.TrimPrefix(ociRepoURL, fmt.Sprintf("%s://", registry.OCIScheme)))
 	if err != nil || len(tags) == 0 {
 		if err != nil {
 			err = fmt.Errorf("unable to locate any tags in provided repository: %s", ociRepoURL)
 		}
-		impl.Logger.Errorw("error in fetching repository tags, FetchOCIChartTagsList", "repo url", ociRepoURL, "err", err)
+		impl.logger.Errorw("error in fetching repository tags, FetchOCIChartTagsList", "repo url", ociRepoURL, "err", err)
 		return nil, err
 	}
 	return tags, nil
 }
 
 func (impl *HelmRepoManagerImpl) RegistryLogin(client *registry.Client, store *sql.DockerArtifactStore, username, password string) error {
-
-	var loginOptions []registry.LoginOption
-	loginOptions = append(loginOptions, registry.LoginOptBasicAuth(username, password))
-	loginOptions = append(loginOptions, registry.LoginOptInsecure(store.Connection == INSECURE_CONNETION_STRING))
-	if store.Connection == SECURE_WITH_CERT_STRING {
-		certificateFilePath, err := registry2.CreateCertificateFile(store.Id, store.Cert)
-		if err != nil {
-			impl.Logger.Errorw("error in creating certificate file path for registry", "registryName", store.Id, "err", err)
-			return err
-		}
-		loginOptions = append(loginOptions, registry.LoginOptTLSClientConfig("", "", certificateFilePath))
-	}
-
 	err := client.Login(store.RegistryURL,
-		loginOptions...,
+		registry.LoginOptBasicAuth(username, password),
+		registry.LoginOptInsecure(store.Connection == INSECURE_CONNETION_STRING),
+		registry.LoginOptTLSClientConfig(store.Cert, "", ""),
 	)
 	if err != nil {
-		impl.Logger.Errorw("error in registry login, RegistryLogin", "DockerArtifactStoreId", store.Id, "err", err)
+		impl.logger.Errorw("error in registry login, RegistryLogin", "DockerArtifactStoreId", store.Id, "err", err)
 		return err
 	}
 	return nil
 }
 
+func (impl *HelmRepoManagerImpl) ExtractCredentialsForRegistry(registryCredential *sql.DockerArtifactStore) (string, string, error) {
+	username := registryCredential.Username
+	pwd := registryCredential.Password
+	if registryCredential.RegistryType == sql.REGISTRYTYPE_ECR {
+		accessKey, secretKey := registryCredential.AWSAccessKeyId, registryCredential.AWSSecretAccessKey
+		var creds *credentials.Credentials
+
+		if len(accessKey) == 0 || len(secretKey) == 0 {
+			sess, err := session.NewSession(&aws.Config{
+				Region: &registryCredential.AWSRegion,
+			})
+			if err != nil {
+				return "", "", err
+			}
+			creds = ec2rolecreds.NewCredentials(sess)
+		} else {
+			creds = credentials.NewStaticCredentials(accessKey, secretKey, "")
+		}
+		sess, err := session.NewSession(&aws.Config{
+			Region:      &registryCredential.AWSRegion,
+			Credentials: creds,
+		})
+		if err != nil {
+			return "", "", err
+		}
+		svc := ecr.New(sess)
+		input := &ecr.GetAuthorizationTokenInput{}
+		authData, err := svc.GetAuthorizationToken(input)
+		if err != nil {
+			return "", "", err
+		}
+		// decode token
+		token := authData.AuthorizationData[0].AuthorizationToken
+		decodedToken, err := base64.StdEncoding.DecodeString(*token)
+		if err != nil {
+			return "", "", err
+		}
+		credsSlice := strings.Split(string(decodedToken), ":")
+		username = credsSlice[0]
+		pwd = credsSlice[1]
+
+	}
+	return username, pwd, nil
+}
+
 func (impl *HelmRepoManagerImpl) LoadChartFromOCIRepo(client *registry.Client, registryUrl, chartname, version string) (*chart.Chart, string, error) {
 	ref := fmt.Sprintf("%s:%s",
-		path.Join(TrimSchemeFromURL(registryUrl), chartname),
+		path.Join(strings.TrimPrefix(registryUrl, fmt.Sprintf("%s://", registry.OCIScheme)), chartname),
 		version)
 	chartDetails, err := client.Pull(
 		ref,
@@ -212,7 +248,7 @@ func (impl *HelmRepoManagerImpl) LoadChartFromOCIRepo(client *registry.Client, r
 		if err == nil {
 			err = fmt.Errorf("error in pulling chart from registry, ChartRepo: %s", ref)
 		}
-		impl.Logger.Errorw("error in pulling chart from registry, LoadChartFromOCIRepo", "chart repo", ref, "err", err)
+		impl.logger.Errorw("error in pulling chart from registry, LoadChartFromOCIRepo", "chart repo", ref, "err", err)
 		return nil, "", err
 	}
 	chart, err := loader.LoadArchive(bytes.NewBuffer(chartDetails.Chart.Data))
@@ -220,18 +256,8 @@ func (impl *HelmRepoManagerImpl) LoadChartFromOCIRepo(client *registry.Client, r
 		if err == nil {
 			err = fmt.Errorf("error in loading chart bytes, ChartRepo: %s", ref)
 		}
-		impl.Logger.Errorw("error in loading chart bytes, LoadChartFromOCIRepo", "chart repo", ref, "err", err)
+		impl.logger.Errorw("error in loading chart bytes, LoadChartFromOCIRepo", "chart repo", ref, "err", err)
 		return nil, "", err
 	}
 	return chart, chartDetails.Chart.Digest, nil
-}
-
-func TrimSchemeFromURL(registryUrl string) string {
-	parsedUrl, err := url.Parse(registryUrl)
-	if err != nil {
-		return registryUrl
-	}
-	urlWithoutScheme := parsedUrl.Host + parsedUrl.Path
-	urlWithoutScheme = strings.TrimPrefix(urlWithoutScheme, "/")
-	return urlWithoutScheme
 }

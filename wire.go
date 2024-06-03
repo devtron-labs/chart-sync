@@ -4,11 +4,10 @@
 package main
 
 import (
-	"github.com/devtron-labs/chart-sync/internals"
-	"github.com/devtron-labs/chart-sync/internals/logger"
-	"github.com/devtron-labs/chart-sync/internals/sql"
+	"github.com/devtron-labs/chart-sync/internal"
+	"github.com/devtron-labs/chart-sync/internal/logger"
+	"github.com/devtron-labs/chart-sync/internal/sql"
 	"github.com/devtron-labs/chart-sync/pkg"
-	"github.com/devtron-labs/common-lib/helmLib/registry"
 	"github.com/google/wire"
 )
 
@@ -17,7 +16,7 @@ func InitializeApp() (*App, error) {
 		NewApp,
 		logger.NewSugardLogger,
 		sql.GetConfig,
-		internals.ParseConfiguration,
+		internal.ParseConfiguration,
 		sql.NewDbConnection,
 		sql.NewDockerArtifactStoreRepositoryImpl,
 		wire.Bind(new(sql.DockerArtifactStoreRepository), new(*sql.DockerArtifactStoreRepositoryImpl)),
@@ -33,14 +32,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pkg.HelmRepoManager), new(*pkg.HelmRepoManagerImpl)),
 		pkg.NewSyncServiceImpl,
 		wire.Bind(new(pkg.SyncService), new(*pkg.SyncServiceImpl)),
-		registry.NewSettingsFactoryImpl,
-		wire.Bind(new(registry.SettingsFactory), new(*registry.SettingsFactoryImpl)),
-
-		registry.NewDefaultSettingsGetter,
-		wire.Bind(new(registry.DefaultSettingsGetter), new(*registry.DefaultSettingsGetterImpl)),
-
-		//sql.NewRemoteConnectionRepositoryImpl,
-		//wire.Bind(new(sql.RemoteConnectionRepository), new(*sql.RemoteConnectionRepositoryImpl)),
 	)
 	return &App{}, nil
 }
