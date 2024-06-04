@@ -192,7 +192,15 @@ func (impl *HelmRepoManagerImpl) RegistryLogin(client *registry.Client, store *s
 func (impl *HelmRepoManagerImpl) ExtractCredentialsForRegistry(registryCredential *sql.DockerArtifactStore) (string, string, error) {
 	username := registryCredential.Username
 	pwd := registryCredential.Password
-	if registryCredential.RegistryType == sql.REGISTRYTYPE_ECR {
+	if (registryCredential.RegistryType == sql.REGISTRYTYPE_GCR || registryCredential.RegistryType == sql.REGISTRYTYPE_ARTIFACT_REGISTRY) && username == sql.JSON_KEY_USERNAME {
+		// for gcr and artifact registry password is already saved as string in DB
+		if strings.HasPrefix(pwd, "'") {
+			pwd = pwd[1:]
+		}
+		if strings.HasSuffix(pwd, "'") {
+			pwd = pwd[:len(pwd)-1]
+		}
+	} else if registryCredential.RegistryType == sql.REGISTRYTYPE_ECR {
 		accessKey, secretKey := registryCredential.AWSAccessKeyId, registryCredential.AWSSecretAccessKey
 		var creds *credentials.Credentials
 
