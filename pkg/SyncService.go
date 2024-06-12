@@ -3,15 +3,18 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/chart-sync/internal"
-	"github.com/devtron-labs/chart-sync/internal/sql"
+	"github.com/devtron-labs/chart-sync/internals"
+	"github.com/devtron-labs/chart-sync/internals/sql"
+	registry2 "github.com/devtron-labs/chart-sync/pkg/registry"
 	"github.com/devtron-labs/chart-sync/util"
+	registry3 "github.com/devtron-labs/common-lib/helmLib/registry"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/repo"
+	url2 "net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -29,7 +32,8 @@ type SyncServiceImpl struct {
 	ociRegistryConfigRepository          sql.OCIRegistryConfigRepository
 	appStoreRepository                   sql.AppStoreRepository
 	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository
-	configuration                        *internal.Configuration
+	configuration                        *internals.Configuration
+	registrySettings                     registry3.SettingsFactory
 }
 
 func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
@@ -39,7 +43,9 @@ func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
 	ociRegistryConfigRepository sql.OCIRegistryConfigRepository,
 	appStoreRepository sql.AppStoreRepository,
 	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository,
-	configuration *internal.Configuration) *SyncServiceImpl {
+	configuration *internals.Configuration,
+	registrySettings registry3.SettingsFactory,
+) *SyncServiceImpl {
 	return &SyncServiceImpl{
 		chartRepoRepository:                  chartRepoRepository,
 		logger:                               logger,
@@ -49,6 +55,7 @@ func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
 		appStoreRepository:                   appStoreRepository,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		configuration:                        configuration,
+		registrySettings:                     registrySettings,
 	}
 }
 
@@ -150,31 +157,53 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 			return nil
 		}
 	}
-
-	client, err := registry.NewClient()
+	registryConfig, err := registry2.NewToRegistryConfig(ociRepo)
+	defer func() {
+		if registryConfig != nil {
+			err := registry3.DeleteCertificateFolder(registryConfig.RegistryCAFilePath)
+			if err != nil {
+				impl.logger.Errorw("error in deleting certificate folder", "registryName", registryConfig.RegistryId, "err", err)
+			}
+		}
+	}()
 	if err != nil {
+		impl.logger.Errorw("error in getting registry config", "registryName", registryConfig.RegistryId, "err", err)
 		return nil
 	}
-	username, password := "", ""
-	if !ociRepo.OCIRegistryConfig[0].IsPublic {
-		username, password, err = impl.helmRepoManager.ExtractCredentialsForRegistry(ociRepo)
-		if err != nil {
-			impl.logger.Errorw("error extracting AWS credentials", "registry id", ociRepo.Id, "err", err)
-			return nil
-		}
-		err = impl.helmRepoManager.RegistryLogin(client, ociRepo, username, password)
-		if err != nil {
-			impl.logger.Errorw("error logging in to OCI registry", "registry id", ociRepo.Id, "err", err)
-			return nil
-		}
+	settingsGetter, err := impl.registrySettings.GetSettings(registryConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting registry settings", "registryName", registryConfig.RegistryId, "err", err)
+		return nil
 	}
+	settings, err := settingsGetter.GetRegistrySettings(registryConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting registry settings for registry", "registryName", ociRepo.Id, "err", err)
+		return err
+	}
+	client := settings.RegistryClient
+	ociRepo.RegistryURL = settings.RegistryHostURL
+
 	for _, chartName := range chartRepoRepositoryList {
-		ref := fmt.Sprintf("%s/%s", strings.TrimSpace(ociRepo.RegistryURL), chartName)
-		chartVersions, err := impl.helmRepoManager.FetchOCIChartTagsList(client, ref)
+		var url *url2.URL
+		if !strings.Contains(strings.ToLower(ociRepo.RegistryURL), "https") && !strings.Contains(strings.ToLower(ociRepo.RegistryURL), "http") {
+			url, err = url2.Parse(fmt.Sprintf("//%s", ociRepo.RegistryURL))
+		} else {
+			url, err = url2.Parse(ociRepo.RegistryURL)
+		}
+
+		if err != nil {
+			impl.logger.Errorw("registry url parse err", "registryURL", ociRepo.RegistryURL, "err", err)
+			return err
+		}
+		ref := fmt.Sprintf("%s/%s", strings.TrimSpace(url.Host), chartName)
+		var chartVersions []string
+
+		chartVersions, err = impl.helmRepoManager.FetchOCIChartTagsList(settings, ref)
 		if err != nil {
 			impl.logger.Errorw("error in fetching OCI repository tags", "repository url", ref, "err", err)
 			continue
 		}
+
 		id, ok := applicationId[chartName]
 		if !ok {
 			app, fetchErr := impl.appStoreRepository.FindInactiveOneByName(ociRepo.Id, chartName)
@@ -208,7 +237,7 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 		}
 		//update entries if any  id, chartVersions
 		impl.logger.Infow("handling all versions of chart", "registryName", ociRepo.Id, "chartName", chartName, "chartVersions", len(chartVersions))
-		err = impl.updateOCIRegistryChartVersions(client, id, chartVersions, ociRepo, chartName, username, password)
+		err = impl.updateOCIRegistryChartVersions(client, id, chartVersions, ociRepo, chartName)
 		if err != nil {
 			impl.logger.Errorw("error in updating chart versions", "err", err, "appId", id)
 			continue
@@ -368,7 +397,7 @@ func (impl *SyncServiceImpl) updateChartVersions(appId int, chartVersions *repo.
 	return nil
 }
 
-func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Client, appId int, chartVersions []string, ociRepo *sql.DockerArtifactStore, chartName, username, password string) error {
+func (impl *SyncServiceImpl) updateOCIRegistryChartVersions(client *registry.Client, appId int, chartVersions []string, ociRepo *sql.DockerArtifactStore, chartName string) error {
 	chartVersionsCount := len(chartVersions)
 	applicationVersions, err := impl.appStoreApplicationVersionRepository.FindVersionsByAppStoreId(appId)
 	if err != nil {
