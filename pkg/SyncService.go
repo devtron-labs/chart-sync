@@ -15,6 +15,7 @@ import (
 	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/repo"
 	url2 "net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -195,7 +196,11 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 			impl.logger.Errorw("registry url parse err", "registryURL", ociRepo.RegistryURL, "err", err)
 			return err
 		}
-		ref := fmt.Sprintf("%s/%s", strings.TrimSpace(url.Host), chartName)
+		parsedUrlPath := strings.TrimSpace(url.Path)
+		parsedHost := strings.TrimSpace(url.Host)
+		parsedRepoName := strings.TrimSpace(chartName)
+		// Join handles empty strings
+		ref := filepath.Join(parsedHost, parsedUrlPath, parsedRepoName)
 		var chartVersions []string
 
 		chartVersions, err = impl.helmRepoManager.FetchOCIChartTagsList(settings, ref)
