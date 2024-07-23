@@ -27,7 +27,7 @@ const (
 type HelmRepoManager interface {
 	LoadIndexFile(chartRepo *sql.ChartRepo) (*repo.IndexFile, error)
 	ValuesJson(repoUrl string, version *repo.ChartVersion, username string, password string, allowInsecureConnection bool) (rawValues string, readme string, valuesSchemaJson string, notes string, err error)
-	OCIRepoValuesJson(client *registry.Client, registryUrl, chartName, version string) (metaData *chart.Metadata, rawValues, readme, valuesSchemaJson, notes, diagest string, err error)
+	OCIRepoValuesJson(client *registry.Client, registryUrl, chartName, version string) (chartData ChartData, err error)
 	RegistryLogin(client *registry.Client, store *sql.DockerArtifactStore, username, password string) error
 	FetchOCIChartTagsList(settings *registry2.Settings, ociRepoURL string) ([]string, error)
 	LoadChartFromOCIRepo(client *registry.Client, registryUrl, chartName, version string) (*chart.Chart, string, error)
@@ -124,17 +124,16 @@ func (impl *HelmRepoManagerImpl) ValuesJson(repoUrl string, version *repo.ChartV
 
 	return rawValues, readme, string(chart.Schema), notes, err
 }
-func (impl *HelmRepoManagerImpl) OCIRepoValuesJson(client *registry.Client, registryUrl, chartName, version string) (metaData *chart.Metadata, rawValues, readme, valuesSchemaJson, notes, diagest string, err error) {
-	chart, diagest, err := impl.LoadChartFromOCIRepo(client, registryUrl, chartName, version)
+func (impl *HelmRepoManagerImpl) OCIRepoValuesJson(client *registry.Client, registryUrl, chartName, version string) (chartData ChartData, err error) {
+	chart, digest, err := impl.LoadChartFromOCIRepo(client, registryUrl, chartName, version)
 	if err != nil {
-		return nil, "", "", "", "", "", err
+		return ChartData{}, err
 	}
-
 	// get values.yaml
 	rawFiles := chart.Raw
 	for _, f := range rawFiles {
 		if strings.EqualFold(f.Name, "values.yaml") {
-			rawValues = string(f.Data)
+			chartData.RawValues = string(f.Data)
 			break
 		}
 	}
@@ -143,7 +142,7 @@ func (impl *HelmRepoManagerImpl) OCIRepoValuesJson(client *registry.Client, regi
 	files := chart.Files
 	for _, f := range files {
 		if strings.EqualFold(f.Name, "README.md") {
-			readme = string(f.Data)
+			chartData.Readme = string(f.Data)
 			break
 		}
 	}
@@ -151,12 +150,15 @@ func (impl *HelmRepoManagerImpl) OCIRepoValuesJson(client *registry.Client, regi
 	// get notes
 	for _, templateFile := range chart.Templates {
 		if strings.EqualFold(templateFile.Name, "NOTES.txt") {
-			notes = string(templateFile.Data)
+			chartData.Notes = string(templateFile.Data)
 			break
 		}
 	}
+	chartData.MetaData = chart.Metadata
+	chartData.ValuesSchemaJson = string(chart.Schema)
+	chartData.Digest = digest
 
-	return chart.Metadata, rawValues, readme, string(chart.Schema), notes, diagest, err
+	return chartData, err
 }
 
 // FetchOCIChartTagsList list down all tags in of the given repository without pagination.
