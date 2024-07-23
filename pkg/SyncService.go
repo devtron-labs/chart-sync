@@ -579,15 +579,13 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.C
 				}
 				appVersions = append(appVersions, application)
 			}
-			// save 20 versions and reset the array (as memory would go increasing if save on one-go)
-			// save into DB
+
 			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
 			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
 			if err != nil {
 				impl.logger.Errorw("error in updating", "totalIn", chartVersionsCount, "totalOut", len(appVersions), "err", err)
 				return
 			}
-			// reset the array
 
 		}(client, ociRepo.RegistryURL, chartName, chartVersions[i:min(i+bulkProcessingBatchSize, len(newChartVersions))])
 
