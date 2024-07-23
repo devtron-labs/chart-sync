@@ -539,8 +539,6 @@ func (impl *SyncServiceImpl) parseAppStoreApplicationDbObj(chartVersion string, 
 
 func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.Client, appId int, chartVersions []string, ociRepo *sql.DockerArtifactStore, chartName string) error {
 
-	chartVersionsCount := len(chartVersions)
-
 	newChartVersions, err := impl.getNewChartVersions(appId, chartVersions)
 	if err != nil {
 		impl.logger.Errorw("error in getting new chart versions", "appStoreId", appId, "err", err)
@@ -583,7 +581,7 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.C
 			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
 			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
 			if err != nil {
-				impl.logger.Errorw("error in updating", "totalIn", chartVersionsCount, "totalOut", len(appVersions), "err", err)
+				impl.logger.Errorw("error in updating", "err", err)
 				return
 			}
 
