@@ -556,10 +556,10 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.C
 
 	for i := 0; i < len(newChartVersions); i = i + bulkProcessingBatchSize {
 
-		go func(client *registry.Client, registryURL, chartName string, chartVersions []string) {
+		go func(client *registry.Client, registryURL, chartName string, chartVersionsBatch []string) {
 
 			var appVersions []*sql.AppStoreApplicationVersion
-			for _, chartVersion := range chartVersions {
+			for _, chartVersion := range chartVersionsBatch {
 
 				defer wg.Done()
 				chartData, err := impl.helmRepoManager.OCIRepoValuesJson(client, ociRepo.RegistryURL, chartName, chartVersion)
@@ -587,7 +587,7 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.C
 				return
 			}
 
-		}(client, ociRepo.RegistryURL, chartName, chartVersions[i:min(i+bulkProcessingBatchSize, len(newChartVersions))])
+		}(client, ociRepo.RegistryURL, chartName, newChartVersions[i:min(i+bulkProcessingBatchSize, len(newChartVersions))])
 
 	}
 
