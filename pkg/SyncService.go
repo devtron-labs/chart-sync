@@ -238,7 +238,7 @@ func (impl *SyncServiceImpl) syncOCIRepo(ociRepo *sql.DockerArtifactStore) error
 		}
 		//update entries if any  id, chartVersions
 		impl.logger.Infow("handling all versions of chart", "registryName", ociRepo.Id, "chartName", chartName, "chartVersions", len(chartVersions))
-		if impl.configuration.BatchSizeForTagProcessing == 0 {
+		if impl.configuration.ParallelismLimitForTagProcessing == 0 {
 			err = impl.updateOCIRegistryChartVersions(client, id, chartVersions, ociRepo, chartName)
 		} else {
 			err = impl.updateOCIRegistryChartVersionsV2(client, id, chartVersions, ociRepo, chartName)
@@ -548,35 +548,38 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.C
 	var isAnyChartVersionFound bool
 
 	var wg *sync.WaitGroup
-	wg.Add(len(newChartVersions))
 
-	bulkProcessingBatchSize := impl.configuration.BatchSizeForTagProcessing
+	availableGoRoutines := make(chan struct{}, impl.configuration.ParallelismLimitForTagProcessing)
 
-	for i := 0; i < len(newChartVersions); i = i + bulkProcessingBatchSize {
+	var appVersions []*sql.AppStoreApplicationVersion
 
-		go func(client *registry.Client, registryURL, chartName string, chartVersionsBatch []string) {
+	for _, cv := range newChartVersions {
 
-			var appVersions []*sql.AppStoreApplicationVersion
-			for _, chartVersion := range chartVersionsBatch {
+		wg.Add(1)
+		availableGoRoutines <- struct{}{}
 
-				defer wg.Done()
-				chartData, err := impl.helmRepoManager.OCIRepoValuesJson(client, ociRepo.RegistryURL, chartName, chartVersion)
-				if err != nil {
-					impl.logger.Errorw("error in getting values yaml", "err", err)
-					return
-				}
+		go func(client *registry.Client, registryURL, chartName string, chartVersion string) {
 
-				if !isAnyChartVersionFound {
-					isAnyChartVersionFound = true
-				}
-
-				application, err := impl.parseAppStoreApplicationDbObj(chartVersion, chartData, appId)
-				if err != nil {
-					impl.logger.Errorw("error in parsing app store application object", "appStoreId", appId, "chartVersion", chartVersion, "err", err)
-					return
-				}
-				appVersions = append(appVersions, application)
+			defer func() {
+				wg.Done()
+				<-availableGoRoutines
+			}()
+			chartData, err := impl.helmRepoManager.OCIRepoValuesJson(client, ociRepo.RegistryURL, chartName, chartVersion)
+			if err != nil {
+				impl.logger.Errorw("error in getting values yaml", "err", err)
+				return
 			}
+
+			if !isAnyChartVersionFound {
+				isAnyChartVersionFound = true
+			}
+
+			application, err := impl.parseAppStoreApplicationDbObj(chartVersion, chartData, appId)
+			if err != nil {
+				impl.logger.Errorw("error in parsing app store application object", "appStoreId", appId, "chartVersion", chartVersion, "err", err)
+				return
+			}
+			appVersions = append(appVersions, application)
 
 			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
 			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
@@ -585,8 +588,27 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.C
 				return
 			}
 
-		}(client, ociRepo.RegistryURL, chartName, newChartVersions[i:min(i+bulkProcessingBatchSize, len(newChartVersions))])
+		}(client, ociRepo.RegistryURL, chartName, cv)
 
+		if len(appVersions) == impl.configuration.AppStoreAppVersionsSaveChunkSize {
+			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
+			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
+			if err != nil {
+				impl.logger.Errorw("error in updating", len(appVersions), "err", err)
+				return err
+			}
+			appVersions = nil
+		}
+
+	}
+
+	if len(appVersions) > 0 {
+		impl.logger.Infow("saving remaining chart versions into DB", "versions", len(appVersions))
+		err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
+		if err != nil {
+			impl.logger.Errorw("error in updating", len(appVersions), "err", err)
+			return err
+		}
 	}
 
 	wg.Wait()
