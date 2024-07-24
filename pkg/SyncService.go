@@ -549,20 +549,20 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.C
 
 	var wg *sync.WaitGroup
 
-	availableGoRoutines := make(chan struct{}, impl.configuration.ParallelismLimitForTagProcessing)
+	workerPool := make(chan struct{}, impl.configuration.ParallelismLimitForTagProcessing)
 
 	var appVersions []*sql.AppStoreApplicationVersion
 
 	for _, cv := range newChartVersions {
 
 		wg.Add(1)
-		availableGoRoutines <- struct{}{}
+		workerPool <- struct{}{}
 
 		go func(client *registry.Client, registryURL, chartName string, chartVersion string) {
 
 			defer func() {
 				wg.Done()
-				<-availableGoRoutines
+				<-workerPool
 			}()
 			chartData, err := impl.helmRepoManager.OCIRepoValuesJson(client, ociRepo.RegistryURL, chartName, chartVersion)
 			if err != nil {
