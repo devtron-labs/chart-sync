@@ -35,6 +35,7 @@ type SyncServiceImpl struct {
 	appStoreApplicationVersionRepository sql.AppStoreApplicationVersionRepository
 	configuration                        *internals.Configuration
 	registrySettings                     registry3.SettingsFactory
+	mutex                                sync.Mutex
 }
 
 func NewSyncServiceImpl(chartRepoRepository sql.ChartRepoRepository,
@@ -547,7 +548,7 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.C
 
 	var isAnyChartVersionFound bool
 
-	var wg *sync.WaitGroup
+	wg := new(sync.WaitGroup)
 
 	workerPool := make(chan struct{}, impl.configuration.ParallelismLimitForTagProcessing)
 
@@ -564,6 +565,7 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.C
 				wg.Done()
 				<-workerPool
 			}()
+
 			chartData, err := impl.helmRepoManager.OCIRepoValuesJson(client, ociRepo.RegistryURL, chartName, chartVersion)
 			if err != nil {
 				impl.logger.Errorw("error in getting values yaml", "err", err)
@@ -579,14 +581,9 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.C
 				impl.logger.Errorw("error in parsing app store application object", "appStoreId", appId, "chartVersion", chartVersion, "err", err)
 				return
 			}
+			impl.mutex.Lock()
 			appVersions = append(appVersions, application)
-
-			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
-			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
-			if err != nil {
-				impl.logger.Errorw("error in updating", "err", err)
-				return
-			}
+			impl.mutex.Unlock()
 
 		}(client, ociRepo.RegistryURL, chartName, cv)
 
@@ -597,7 +594,9 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.C
 				impl.logger.Errorw("error in updating", len(appVersions), "err", err)
 				return err
 			}
+			impl.mutex.Lock()
 			appVersions = nil
+			impl.mutex.Unlock()
 		}
 
 	}
@@ -609,68 +608,6 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.C
 			impl.logger.Errorw("error in updating", len(appVersions), "err", err)
 			return err
 		}
-	}
-
-	wg.Wait()
-
-	if !isAnyChartVersionFound {
-		impl.logger.Infow("no change for ", "app", appId)
-		return nil
-	}
-
-	return nil
-}
-
-func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV3(client *registry.Client, appId int, chartVersions []string, ociRepo *sql.DockerArtifactStore, chartName string) error {
-
-	newChartVersions, err := impl.getNewChartVersions(appId, chartVersions)
-	if err != nil {
-		impl.logger.Errorw("error in getting new chart versions", "appStoreId", appId, "err", err)
-		return err
-	}
-
-	var isAnyChartVersionFound bool
-
-	var wg *sync.WaitGroup
-	wg.Add(len(newChartVersions))
-
-	bulkProcessingBatchSize := 5
-
-	for i := 0; i < len(newChartVersions); i = i + bulkProcessingBatchSize {
-
-		go func(client *registry.Client, registryURL, chartName string, chartVersionsBatch []string) {
-
-			var appVersions []*sql.AppStoreApplicationVersion
-			for _, chartVersion := range chartVersionsBatch {
-
-				defer wg.Done()
-				chartData, err := impl.helmRepoManager.OCIRepoValuesJson(client, ociRepo.RegistryURL, chartName, chartVersion)
-				if err != nil {
-					impl.logger.Errorw("error in getting values yaml", "err", err)
-					return
-				}
-
-				if !isAnyChartVersionFound {
-					isAnyChartVersionFound = true
-				}
-
-				application, err := impl.parseAppStoreApplicationDbObj(chartVersion, chartData, appId)
-				if err != nil {
-					impl.logger.Errorw("error in parsing app store application object", "appStoreId", appId, "chartVersion", chartVersion, "err", err)
-					return
-				}
-				appVersions = append(appVersions, application)
-			}
-
-			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
-			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
-			if err != nil {
-				impl.logger.Errorw("error in updating", "err", err)
-				return
-			}
-
-		}(client, ociRepo.RegistryURL, chartName, newChartVersions[i:min(i+bulkProcessingBatchSize, len(newChartVersions))])
-
 	}
 
 	wg.Wait()
