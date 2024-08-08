@@ -586,25 +586,25 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.C
 				impl.logger.Errorw("error in parsing app store application object", "appStoreId", appId, "chartVersion", chartVersion, "err", err)
 				return
 			}
+
 			impl.mutex.Lock()
+			defer impl.mutex.Unlock()
 			appVersions = append(appVersions, application)
-			impl.mutex.Unlock()
+			if len(appVersions) == impl.configuration.AppStoreAppVersionsSaveChunkSize {
+				impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
+				err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
+				if err != nil {
+					impl.logger.Errorw("error in updating", len(appVersions), "err", err)
+					return
+				}
+				appVersions = nil
+			}
 
 		}(client, ociRepo.RegistryURL, chartName, cv)
 
-		if len(appVersions) == impl.configuration.AppStoreAppVersionsSaveChunkSize {
-			impl.logger.Infow("saving chart versions into DB", "versions", len(appVersions))
-			err = impl.appStoreApplicationVersionRepository.Save(&appVersions)
-			if err != nil {
-				impl.logger.Errorw("error in updating", len(appVersions), "err", err)
-				return err
-			}
-			impl.mutex.Lock()
-			appVersions = nil
-			impl.mutex.Unlock()
-		}
-
 	}
+
+	wg.Wait()
 
 	if len(appVersions) > 0 {
 		impl.logger.Infow("saving remaining chart versions into DB", "versions", len(appVersions))
@@ -614,8 +614,6 @@ func (impl *SyncServiceImpl) updateOCIRegistryChartVersionsV2(client *registry.C
 			return err
 		}
 	}
-
-	wg.Wait()
 
 	if !isAnyChartVersionFound {
 		impl.logger.Infow("no change for ", "app", appId)
