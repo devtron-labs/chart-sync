@@ -68,3 +68,5 @@ func (impl *ChartRepoRepositoryImpl) GetAll() (repos []*ChartRepo, err error) {
 		Select()
 	return repos, err
 }
+
+
