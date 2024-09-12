@@ -12,6 +12,7 @@ type ChartRepo struct {
 	Name                    string   `sql:"name"`
 	Url                     string   `sql:"url"`
 	Active                  bool     `sql:"active"`
+	Deleted                 bool     `sql:"deleted"`
 	Default                 bool     `sql:"is_default"`
 	External                bool     `sql:"external"`
 	Username                string   `sql:"user_name"`
@@ -46,6 +47,7 @@ func (impl ChartRepoRepositoryImpl) GetDefault() (*ChartRepo, error) {
 	repo := &ChartRepo{}
 	err := impl.dbConnection.Model(repo).
 		Where("is_default = ?", true).
+		Where("deleted = ?", false).
 		Where("active = ?", true).Select()
 	return repo, err
 }
@@ -54,13 +56,17 @@ func (impl ChartRepoRepositoryImpl) FindById(id int) (*ChartRepo, error) {
 	repo := &ChartRepo{}
 	err := impl.dbConnection.Model(repo).
 		Where("id = ?", id).
-		Where("active = ?", true).Select()
+		Where("deleted = ?", false).
+		Select()
 	return repo, err
 }
 
 func (impl *ChartRepoRepositoryImpl) GetAll() (repos []*ChartRepo, err error) {
 	err = impl.dbConnection.Model(&repos).
-		Where("external = ?", true).Where("active =?", true).
+		Where("external = ?", true).
+		Where("deleted = ?", false).
 		Select()
 	return repos, err
 }
+
+
