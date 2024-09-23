@@ -93,7 +93,7 @@ github.com/containerd/platforms
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/devtron-labs/common-lib v0.18.0
+# github.com/devtron-labs/common-lib v0.18.1-0.20240923100800-5ddd15253061
 ## explicit; go 1.21
 github.com/devtron-labs/common-lib/helmLib/registry
 github.com/devtron-labs/common-lib/utils/http
