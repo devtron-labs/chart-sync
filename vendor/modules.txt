@@ -93,7 +93,7 @@ github.com/containerd/platforms
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/devtron-labs/common-lib v0.18.0
+# github.com/devtron-labs/common-lib v0.19.0
 ## explicit; go 1.21
 github.com/devtron-labs/common-lib/helmLib/registry
 github.com/devtron-labs/common-lib/utils/http
@@ -359,8 +359,8 @@ go.starlark.net/syntax
 go.uber.org/atomic
 # go.uber.org/goleak v1.2.1
 ## explicit; go 1.18
-# go.uber.org/multierr v1.6.0
-## explicit; go 1.12
+# go.uber.org/multierr v1.11.0
+## explicit; go 1.19
 go.uber.org/multierr
 # go.uber.org/zap v1.21.0
 ## explicit; go 1.13
@@ -503,7 +503,7 @@ helm.sh/helm/v3/pkg/provenance
 helm.sh/helm/v3/pkg/registry
 helm.sh/helm/v3/pkg/repo
 helm.sh/helm/v3/pkg/time
-# k8s.io/api v0.29.0
+# k8s.io/api v0.29.7
 ## explicit; go 1.21
 k8s.io/api/admissionregistration/v1
 k8s.io/api/admissionregistration/v1alpha1
@@ -557,7 +557,7 @@ k8s.io/api/scheduling/v1beta1
 k8s.io/api/storage/v1
 k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
-# k8s.io/apimachinery v0.29.0
+# k8s.io/apimachinery v0.29.7
 ## explicit; go 1.21
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
@@ -607,7 +607,7 @@ k8s.io/cli-runtime/pkg/genericclioptions
 k8s.io/cli-runtime/pkg/genericiooptions
 k8s.io/cli-runtime/pkg/printers
 k8s.io/cli-runtime/pkg/resource
-# k8s.io/client-go v0.29.0
+# k8s.io/client-go v0.29.7
 ## explicit; go 1.21
 k8s.io/client-go/discovery
 k8s.io/client-go/discovery/cached/disk
