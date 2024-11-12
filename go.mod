@@ -8,7 +8,7 @@ replace helm.sh/helm/v3 v3.14.3 => github.com/devtron-labs/helm/v3 v3.14.1-0.202
 
 require (
 	github.com/caarlos0/env v3.5.0+incompatible
-	github.com/devtron-labs/common-lib v0.19.0
+	github.com/devtron-labs/common-lib v0.19.2-0.20241112112602-4a23a105c420
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-pg/pg v6.15.1+incompatible
 	github.com/google/wire v0.6.0
